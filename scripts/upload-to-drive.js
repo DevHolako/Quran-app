@@ -4,30 +4,49 @@ const { drive, auth } = require('@googleapis/drive');
 
 const FOLDER_ID = process.env.GDRIVE_FOLDER_ID || '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0';
 
-// 1. Parse Credentials (supports raw JSON or base64 encoded JSON)
+// 1. Recursive file search
+function findFiles(dir, pattern, maxDepth = 4, currentDepth = 0) {
+    let results = [];
+    if (currentDepth > maxDepth || !fs.existsSync(dir)) return results;
+    try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (['node_modules', '.git', '.github'].includes(entry.name)) continue;
+                results = results.concat(findFiles(fullPath, pattern, maxDepth, currentDepth + 1));
+            } else if (entry.isFile() && pattern.test(entry.name)) {
+                results.push(fullPath);
+            }
+        }
+    } catch (e) {
+        console.warn(`[Search] Warning accessing ${dir}: ${e.message}`);
+    }
+    return results;
+}
+
+// 2. Parse Credentials (supports raw JSON or base64 encoded JSON)
 function getCredentials() {
     let raw = process.env.GDRIVE_CREDENTIALS;
     if (!raw || !raw.trim()) {
-        throw new Error('GDRIVE_CREDENTIALS secret is not set! Please add it in your repository Settings > Secrets and variables > Actions.');
+        throw new Error('GDRIVE_CREDENTIALS secret is not set! Please add it in your repository Settings > Environments > main > Environment secrets or Repository Secrets.');
     }
 
     raw = raw.trim();
-    // Strip surrounding quotes if present
     if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
         raw = raw.slice(1, -1).trim();
     }
 
-    // Try parsing as JSON directly
+    // Try direct JSON parse
     try {
         const parsed = JSON.parse(raw);
         if (parsed.client_email && (parsed.private_key || parsed.private_key_id)) {
             console.log(`[Auth] Loaded Google Service Account credentials for: ${parsed.client_email}`);
             return parsed;
         }
-    } catch (e) {
-        // Not direct JSON, attempt base64 decode
-    }
+    } catch (e) {}
 
+    // Try base64 decode
     try {
         const decoded = Buffer.from(raw, 'base64').toString('utf8');
         const parsed = JSON.parse(decoded);
@@ -42,7 +61,7 @@ function getCredentials() {
     throw new Error('Invalid GDRIVE_CREDENTIALS format. Expected Google Service Account JSON key.');
 }
 
-// 2. Upload or update a file in Google Drive
+// 3. Upload or update a file in Google Drive
 async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileName, mimeType) {
     const fileName = customFileName || path.basename(filePath);
     const fileSize = fs.statSync(filePath).size;
@@ -50,7 +69,7 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
 
     console.log(`\n[Upload] Processing ${fileName} (${fileSizeMb} MB)...`);
 
-    // Search for existing file in the target folder
+    // Search for existing file in target folder
     const listRes = await driveClient.files.list({
         q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
         fields: 'files(id, name, webViewLink, webContentLink)'
@@ -61,7 +80,6 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
     let webViewLink = null;
 
     if (existingFiles.length > 0) {
-        // Update in-place to preserve permanent file ID and link
         fileId = existingFiles[0].id;
         console.log(`[Upload] File already exists in Drive (ID: ${fileId}). Updating content...`);
 
@@ -78,7 +96,6 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
         webViewLink = updateRes.data.webViewLink;
         console.log(`[Upload] Updated existing file successfully.`);
     } else {
-        // Create new file
         console.log(`[Upload] Uploading new file to folder ID: ${folderId}...`);
 
         const createRes = await driveClient.files.create({
@@ -98,7 +115,7 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
         console.log(`[Upload] Created new file successfully (ID: ${fileId}).`);
     }
 
-    // Ensure public read permission (anyone with link can download)
+    // Ensure public read permission
     try {
         await driveClient.permissions.create({
             fileId: fileId,
@@ -127,28 +144,25 @@ async function main() {
     });
     const driveClient = drive({ version: 'v3', auth: authClient });
 
-    // Locate artifacts
     const rootDir = process.cwd();
-    const distDir = path.join(rootDir, 'dist');
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    console.log(`[Project] Package version: ${pkg.version}`);
 
-    // 1. Locate Installer
-    let installerPath = null;
-    if (fs.existsSync(distDir)) {
-        const files = fs.readdirSync(distDir);
-        const setupFile = files.find(f => f.startsWith('Quran_App_Setup') && f.endsWith('.exe'));
-        if (setupFile) {
-            installerPath = path.join(distDir, setupFile);
-        } else {
-            const anyExe = files.find(f => f.endsWith('.exe'));
-            if (anyExe) installerPath = path.join(distDir, anyExe);
-        }
-    }
+    // 1. Locate Installer using recursive search
+    const allExeFiles = findFiles(rootDir, /\.exe$/i).filter(p => !p.includes('win-unpacked'));
+    console.log(`[Search] Found executable files:`, allExeFiles.map(p => path.relative(rootDir, p)));
+
+    const expectedSetupName = `Quran_App_Setup_${pkg.version}.exe`;
+    let installerPath = allExeFiles.find(p => path.basename(p) === expectedSetupName)
+        || allExeFiles.find(p => path.basename(p).startsWith('Quran_App_Setup') && p.endsWith('.exe'))
+        || allExeFiles.find(p => path.basename(p).toLowerCase().includes('setup'))
+        || allExeFiles[0];
 
     if (!installerPath || !fs.existsSync(installerPath)) {
-        throw new Error(`Could not find setup installer in ${distDir}!`);
+        throw new Error(`Could not find setup installer in ${rootDir}! Searched files: ${JSON.stringify(allExeFiles)}`);
     }
 
-    console.log(`[Installer] Found: ${path.basename(installerPath)}`);
+    console.log(`[Installer] Selected for upload: ${path.basename(installerPath)} (${installerPath})`);
 
     // Upload Installer to Google Drive
     const installerUpload = await uploadOrUpdateFile(
@@ -160,26 +174,25 @@ async function main() {
     );
 
     // 2. Locate and Update version.json
-    let versionJsonPath = path.join(rootDir, 'version.json');
-    if (!fs.existsSync(versionJsonPath) && fs.existsSync(path.join(distDir, 'version.json'))) {
-        versionJsonPath = path.join(distDir, 'version.json');
-    }
+    const allVersionFiles = findFiles(rootDir, /^version\.json$/i);
+    console.log(`[version.json] Found files:`, allVersionFiles.map(p => path.relative(rootDir, p)));
 
+    let versionJsonPath = allVersionFiles[0] || path.join(rootDir, 'version.json');
     if (!fs.existsSync(versionJsonPath)) {
-        throw new Error(`version.json not found in root or dist directory!`);
+        throw new Error(`version.json not found in workspace!`);
     }
 
     const versionContent = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
     const downloadDirectUrl = `https://drive.google.com/file/d/${installerUpload.fileId}/view?usp=drive_link`;
     versionContent.downloadUrl = downloadDirectUrl;
+    versionContent.version = pkg.version;
     versionContent.releaseDate = new Date().toISOString().split('T')[0];
 
-    // Write updated version.json to disk
-    fs.writeFileSync(versionJsonPath, JSON.stringify(versionContent, null, 2), 'utf8');
-    if (fs.existsSync(path.join(distDir, 'version.json'))) {
-        fs.writeFileSync(path.join(distDir, 'version.json'), JSON.stringify(versionContent, null, 2), 'utf8');
+    // Synchronize all discovered version.json copies
+    for (const vFile of allVersionFiles) {
+        fs.writeFileSync(vFile, JSON.stringify(versionContent, null, 2), 'utf8');
+        console.log(`[version.json] Updated local copy at ${path.relative(rootDir, vFile)}`);
     }
-    console.log(`\n[version.json] Updated downloadUrl to: ${downloadDirectUrl}`);
 
     // Upload version.json to Google Drive
     const targetVersionId = process.env.VERSION_FILE_ID || '1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij';
