@@ -12,7 +12,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
+  build-windows:
+    name: Build Windows Application
     runs-on: windows-latest
 
     steps:
@@ -31,13 +32,28 @@ jobs:
       - name: Build Windows Executables
         run: npm run dist
 
-      - name: Archive Artifacts (GitHub Actions)
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: quran-app-windows
+          name: quran-app-artifacts
           path: |
             dist/*.exe
             version.json
+
+  deploy-drive-and-release:
+    name: Upload to Google Drive & GitHub Release
+    needs: build-windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: quran-app-artifacts
+          path: dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -48,7 +64,7 @@ jobs:
             version.json
           generate_release_notes: true
 
-      - name: Upload Setup to Google Drive
+      - name: Upload Setup Installer to Google Drive
         if: env.GDRIVE_CREDENTIALS != ''
         uses: adityak74/google-drive-upload-git-action@main
         env:
