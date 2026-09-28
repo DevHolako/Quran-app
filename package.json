@@ -13,6 +13,7 @@
     "dist:nsis": "electron-builder --win nsis --publish never"
   },
   "devDependencies": {
+    "@googleapis/drive": "^26.0.1",
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3"
   },

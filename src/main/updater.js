@@ -11,8 +11,8 @@ function formatGoogleDriveUrl(url) {
     if (!url) return '';
     const trimmed = url.trim();
 
-    // Check if it's already a direct link
-    if (trimmed.includes('export=download') || trimmed.includes('drive.usercontent.google.com')) {
+    // Check if it's already a direct usercontent link
+    if (trimmed.includes('drive.usercontent.google.com')) {
         return trimmed;
     }
 
@@ -63,7 +63,6 @@ function fetchJsonWithRedirects(url, maxRedirects = 6) {
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
-                    // Try parsing JSON
                     const json = JSON.parse(data);
                     resolve(json);
                 } catch (e) {
@@ -95,8 +94,8 @@ function isNewerVersion(remote, local) {
     return false;
 }
 
-// Download file following redirects with progress tracking
-function downloadUpdateFile(url, onProgress, maxRedirects = 8) {
+// Download file following redirects with cookie preservation and virus warning bypass
+function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') {
     return new Promise((resolve, reject) => {
         if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
 
@@ -104,21 +103,69 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 8) {
         const parsedUrl = new URL(formattedUrl);
         const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
-        const req = protocol.get(formattedUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) QuranAppUpdater/1.0'
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+        };
+        if (cookieJar) {
+            headers['Cookie'] = cookieJar;
+        }
+
+        const req = protocol.get(formattedUrl, { headers }, (res) => {
+            // Collect cookies
+            let updatedCookieJar = cookieJar;
+            if (res.headers['set-cookie']) {
+                const newCookies = Array.isArray(res.headers['set-cookie']) 
+                    ? res.headers['set-cookie'].map(c => c.split(';')[0]).join('; ')
+                    : res.headers['set-cookie'].split(';')[0];
+                updatedCookieJar = updatedCookieJar ? `${updatedCookieJar}; ${newCookies}` : newCookies;
             }
-        }, (res) => {
+
+            // Handle HTTP redirects
             if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
                 let redirectUrl = res.headers.location;
                 if (!redirectUrl.startsWith('http')) {
                     redirectUrl = new URL(redirectUrl, formattedUrl).href;
                 }
-                return resolve(downloadUpdateFile(redirectUrl, onProgress, maxRedirects - 1));
+                return resolve(downloadUpdateFile(redirectUrl, onProgress, maxRedirects - 1, updatedCookieJar));
             }
 
             if (res.statusCode < 200 || res.statusCode >= 300) {
                 return reject(new Error(`Download failed with status ${res.statusCode}`));
+            }
+
+            const contentType = res.headers['content-type'] || '';
+
+            // Handle Google Drive virus scan confirmation page for large files
+            if (contentType.includes('text/html')) {
+                let htmlData = '';
+                res.on('data', chunk => htmlData += chunk);
+                res.on('end', () => {
+                    const linkMatch = htmlData.match(/id="uc-download-link"\s+href="([^"]+)"/i) 
+                        || htmlData.match(/href="(\/uc\?export=download[^"]+)"/i)
+                        || htmlData.match(/action="([^"]+)"[^>]*id="download-form"/i)
+                        || htmlData.match(/action="([^"]+download[^"]*)"/i);
+
+                    const confirmMatch = htmlData.match(/name="confirm"\s+value="([^"]+)"/i)
+                        || htmlData.match(/confirm=([a-zA-Z0-9_-]+)/i);
+
+                    if (linkMatch && linkMatch[1]) {
+                        let nextUrl = linkMatch[1].replace(/&amp;/g, '&');
+                        if (!nextUrl.startsWith('http')) {
+                            nextUrl = new URL(nextUrl, formattedUrl).href;
+                        }
+                        return resolve(downloadUpdateFile(nextUrl, onProgress, maxRedirects - 1, updatedCookieJar));
+                    } else if (confirmMatch && confirmMatch[1]) {
+                        const idMatch = formattedUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) || formattedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                        if (idMatch) {
+                            const nextUrl = `https://drive.usercontent.google.com/download?id=${idMatch[1]}&export=download&confirm=${confirmMatch[1]}`;
+                            return resolve(downloadUpdateFile(nextUrl, onProgress, maxRedirects - 1, updatedCookieJar));
+                        }
+                    }
+
+                    reject(new Error('Google Drive requires confirmation: please download via browser'));
+                });
+                return;
             }
 
             const totalBytes = parseInt(res.headers['content-length'], 10) || 0;
@@ -130,8 +177,8 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 8) {
 
             res.on('data', chunk => {
                 receivedBytes += chunk.length;
-                if (totalBytes > 0 && typeof onProgress === 'function') {
-                    const percent = Math.round((receivedBytes / totalBytes) * 100);
+                if (typeof onProgress === 'function') {
+                    const percent = totalBytes > 0 ? Math.round((receivedBytes / totalBytes) * 100) : 0;
                     onProgress({ percent, receivedBytes, totalBytes });
                 }
             });
@@ -139,7 +186,22 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 8) {
             res.pipe(fileStream);
 
             fileStream.on('finish', () => {
-                fileStream.close(() => resolve(destPath));
+                fileStream.close(() => {
+                    // Verify Windows PE binary ('MZ' signature)
+                    try {
+                        const buffer = Buffer.alloc(2);
+                        const fd = fs.openSync(destPath, 'r');
+                        fs.readSync(fd, buffer, 0, 2, 0);
+                        fs.closeSync(fd);
+                        if (buffer.toString('ascii') !== 'MZ') {
+                            fs.unlink(destPath, () => {});
+                            return reject(new Error('Downloaded file is not a valid Windows executable.'));
+                        }
+                    } catch (e) {
+                        return reject(new Error(`Failed to verify executable: ${e.message}`));
+                    }
+                    resolve(destPath);
+                });
             });
 
             fileStream.on('error', err => {

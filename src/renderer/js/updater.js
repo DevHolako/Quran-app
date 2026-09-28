@@ -174,13 +174,15 @@ const UpdaterModule = {
                 this.isDownloading = false;
                 if (actionsBox) actionsBox.style.display = 'flex';
                 if (progressBox) progressBox.style.display = 'none';
-                App.showToast(`⚠️ فشل التحميل: ${res.error || 'خطأ غير معروف'}`);
+                App.showToast(`⚠️ تعذر التحميل التلقائي: ${res.error || ''} - جاري فتح التحميل في المتصفح`);
+                this.openDownloadInBrowser();
             }
         } catch (err) {
             this.isDownloading = false;
             if (actionsBox) actionsBox.style.display = 'flex';
             if (progressBox) progressBox.style.display = 'none';
-            App.showToast('⚠️ حدث خطأ أثناء تحميل التحديث');
+            App.showToast('⚠️ جاري فتح التحميل في المتصفح...');
+            this.openDownloadInBrowser();
         }
     },
 

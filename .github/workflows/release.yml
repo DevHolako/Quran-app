@@ -51,11 +51,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: quran-app-artifacts
           path: dist
+
+      - name: Upload to Google Drive & Update version.json
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          GDRIVE_FOLDER_ID: '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0'
+        run: node scripts/upload-to-drive.js
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -65,25 +80,3 @@ jobs:
             dist/*.exe
             version.json
           generate_release_notes: true
-
-      - name: Upload Setup Installer to Google Drive
-        if: env.GDRIVE_CREDENTIALS != ''
-        uses: adityak74/google-drive-upload-git-action@main
-        env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: 'dist/Quran_App_Setup_*.exe'
-          folderId: '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0'
-          overwrite: 'true'
-
-      - name: Upload version.json to Google Drive
-        if: env.GDRIVE_CREDENTIALS != ''
-        uses: adityak74/google-drive-upload-git-action@main
-        env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
-        with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
-          filename: 'version.json'
-          folderId: '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0'
-          overwrite: 'true'
