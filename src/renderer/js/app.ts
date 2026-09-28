@@ -210,12 +210,12 @@ export const App = {
     createFullBackupData(): FullBackupData {
         return {
             app: 'QuranAppDesktop',
-            version: '1.0.3',
+            version: '1.0.4',
             timestamp: new Date().toISOString(),
             settings: Storage.getSettings(),
             bookmarks: Storage.getBookmarks(),
             lastRead: Storage.getLastRead(),
-            adhkar: Storage.get('adhkar_items', null),
+            adhkar: Storage.get('custom_adhkar_data', null),
             tasbihTarget: Storage.get('tasbih_target', 33)
         };
     },
@@ -248,7 +248,7 @@ export const App = {
                 if (data.settings) Storage.saveSettings(data.settings);
                 if (data.bookmarks) Storage.set('quran_bookmarks', data.bookmarks);
                 if (data.lastRead) Storage.set('quran_last_read', data.lastRead);
-                if (data.adhkar) Storage.set('adhkar_items', data.adhkar);
+                if (data.adhkar) Storage.set('custom_adhkar_data', data.adhkar);
                 if (data.tasbihTarget) Storage.set('tasbih_target', data.tasbihTarget);
 
                 this.showToast('✅ تم استعادة بياناتك وأذكارك وإعداداتك بنجاح!');

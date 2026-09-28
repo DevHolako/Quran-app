@@ -202,6 +202,7 @@ export const PlayerModule = {
     },
 
     async onSurahLoaded(surahId: number, _verses?: Verse[]): Promise<void> {
+        const surahChanged = this.currentSurah !== surahId;
         this.currentSurah = surahId;
         const quranMod = (window as any).QuranModule;
         const surahInfo = quranMod ? quranMod.getSurahInfo(surahId) : { name: `سورة ${surahId}` };
@@ -213,6 +214,9 @@ export const PlayerModule = {
 
         if (this.isPlaying) {
             await this.playSurah(this.currentSurah);
+        } else if (surahChanged) {
+            // Reset player position when navigating to a new surah while paused
+            this.stop(false);
         }
     },
 
@@ -224,7 +228,39 @@ export const PlayerModule = {
         if (this.isPlaying) {
             this.audio.pause();
         } else {
+            // Resume if already loaded for this surah and paused mid-way
+            if (this.audio && this.audio.src && !this.audio.ended && this.audio.currentTime > 0) {
+                try {
+                    await this.audio.play();
+                    return;
+                } catch (e) {
+                    console.warn('Resume playback failed, restarting surah:', e);
+                }
+            }
             await this.playSurah(this.currentSurah);
+        }
+    },
+
+    stop(showToast: boolean = true): void {
+        if (this.audio) {
+            this.audio.pause();
+            this.audio.currentTime = 0;
+        }
+        this.isPlaying = false;
+        this.stopScrollTracking();
+        this.updatePlayBtn(false);
+        this.clearIntroHighlight();
+        document.querySelectorAll('.active-ayah').forEach(el => el.classList.remove('active-ayah'));
+        this.lastActiveAyah = -1;
+
+        const fillEl = document.getElementById('playerProgressFill');
+        if (fillEl) fillEl.style.width = '0%';
+        const curEl = document.getElementById('playerTimeCurrent');
+        if (curEl) curEl.textContent = '00:00';
+
+        if (showToast) {
+            const app = (window as any).App;
+            if (app) app.showToast('⏹️ تم إيقاف التلاوة');
         }
     },
 

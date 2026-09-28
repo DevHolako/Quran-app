@@ -317,6 +317,16 @@
     background: var(--primary-light);
 }
 
+.player-btn.stop-btn {
+    color: #e74c3c;
+}
+
+.player-btn.stop-btn:hover {
+    background: rgba(231, 76, 60, 0.12);
+    color: #c0392b;
+    transform: scale(1.06);
+}
+
 .timeline-scrubber-row {
     display: flex;
     align-items: center;
@@ -655,18 +665,103 @@
     padding: 24px;
 }
 
+/* Floating Scroll To Top Button */
+.scroll-to-top-fab {
+    position: fixed;
+    bottom: calc(var(--audio-dock-height) + 24px);
+    left: 28px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 99;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-to-top-fab.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top-fab:hover {
+    background: var(--primary-light);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
 .adhkar-card-item {
+    position: relative;
     background: var(--bg-surface-alt);
     border: 1px solid var(--border-color);
     border-radius: 14px;
-    padding: 18px 20px;
-    margin-bottom: 14px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
     line-height: 2.2;
-    font-size: 17px;
+    font-size: 16px;
     cursor: pointer;
     transition: all 0.2s;
     user-select: text;
     border-right: 5px solid var(--primary);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.adhkar-card-item .adhkar-text {
+    flex: 1;
+}
+
+.adhkar-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.35;
+    transition: opacity 0.2s ease;
+    align-self: flex-start;
+    flex-shrink: 0;
+}
+
+.adhkar-card-item:hover .adhkar-item-actions,
+.adhkar-card-item.in-edit-mode .adhkar-item-actions {
+    opacity: 1;
+}
+
+.adhkar-action-icon {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.adhkar-action-icon:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--hover-bg);
+    transform: scale(1.08);
+}
+
+.adhkar-action-icon.delete:hover {
+    color: #e74c3c;
+    border-color: #e74c3c;
+    background: rgba(231, 76, 60, 0.1);
 }
 
 .adhkar-card-item:hover {

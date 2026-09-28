@@ -158,7 +158,7 @@
                                 <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <i data-lucide="refresh-cw"></i> التحديث التلقائي
                                 </div>
-                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.3</span>
+                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.4</span>
                             </div>
                             <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
                                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
@@ -205,6 +205,10 @@
                         جاري تهيئة المصحف الشريف...
                     </div>
                 </div>
+                <!-- Floating Scroll To Top Button -->
+                <button class="scroll-to-top-fab" id="btnScrollToTop" onclick="QuranModule.scrollToTop()" title="الرجوع إلى أول السورة">
+                    <i data-lucide="arrow-up"></i>
+                </button>
             </main>
         </div>
 
@@ -233,7 +237,8 @@
                 <div class="player-buttons-row">
                     <button class="player-btn" onclick="PlayerModule.prevSurah()" title="السورة السابقة"><i data-lucide="skip-back"></i></button>
                     <button class="player-btn" onclick="PlayerModule.skip(-10)" title="تأخير 10 ثواني"><i data-lucide="rotate-ccw"></i></button>
-                    <button class="player-btn play-pause-btn" id="playerPlayPauseBtn" onclick="PlayerModule.togglePlay()" title="تشغيل / إيقاف"><i data-lucide="play"></i></button>
+                    <button class="player-btn play-pause-btn" id="playerPlayPauseBtn" onclick="PlayerModule.togglePlay()" title="تشغيل / استئناف / إيقاف مؤقت"><i data-lucide="play"></i></button>
+                    <button class="player-btn stop-btn" id="playerStopBtn" onclick="PlayerModule.stop()" title="إيقاف التلاوة وتصفير الوقت"><i data-lucide="square"></i></button>
                     <button class="player-btn" onclick="PlayerModule.skip(10)" title="تقديم 10 ثواني"><i data-lucide="rotate-cw"></i></button>
                     <button class="player-btn" onclick="PlayerModule.nextSurah()" title="السورة التالية"><i data-lucide="skip-forward"></i></button>
                 </div>
@@ -247,8 +252,13 @@
                 </div>
             </div>
 
-            <!-- Right: Speed, Sync Offset & Volume Controls -->
+            <!-- Right: Speed, Sync Offset, ToTop & Volume Controls -->
             <div class="audio-side-features">
+                <!-- Return To Top of Surah Button -->
+                <button class="player-side-btn" onclick="QuranModule.scrollToTop()" title="الرجوع إلى أول السورة">
+                    <i data-lucide="arrow-up"></i>
+                </button>
+
                 <!-- My Recitation Speed Slider -->
                 <div class="my-recitation-bar" id="myRecitationBar">
                     <span style="font-size: 13px; display: flex; align-items: center; gap: 4px;"><i data-lucide="gauge"></i> سرعة القراءة:</span>
@@ -305,12 +315,72 @@
 
         <!-- ===== ADHKAR READER MODAL ===== -->
         <div class="modal-overlay" id="adhkarModal">
-            <div class="modal-card">
+            <div class="modal-card" style="max-width: 760px;">
                 <div class="modal-header">
-                    <div class="modal-title" id="adhkarModalTitle">الأذكار</div>
-                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeAdhkarReader()"><i data-lucide="x"></i></button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="modal-title" id="adhkarModalTitle">الأذكار</div>
+                        <span id="adhkarModeBadge" style="font-size: 11px; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 10px; font-weight: 700;">وضع القراءة</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="nav-btn" id="btnToggleAdhkarEdit" onclick="AdhkarModule.toggleEditMode()" title="تعديل أو حذف الأذكار">
+                            <i data-lucide="edit-3"></i> تعديل وإدارة
+                        </button>
+                        <button class="nav-btn btn-special" onclick="AdhkarModule.openAddNewModal()" title="إضافة ذكر جديد">
+                            <i data-lucide="plus"></i> إضافة ذكر
+                        </button>
+                        <button class="tafsir-drawer-close" onclick="AdhkarModule.closeAdhkarReader()"><i data-lucide="x"></i></button>
+                    </div>
                 </div>
                 <div class="modal-body" id="adhkarModalBody"></div>
+            </div>
+        </div>
+
+        <!-- ===== ADHKAR EDIT / ADD MODAL ===== -->
+        <div class="modal-overlay" id="adhkarEditModal">
+            <div class="modal-card" style="max-width: 520px;">
+                <div class="modal-header">
+                    <div class="modal-title" id="adhkarEditModalTitle" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="edit-3"></i> تعديل الذكر
+                    </div>
+                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeEditModal()"><i data-lucide="x"></i></button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <input type="hidden" id="editAdhkarType">
+                    <input type="hidden" id="editAdhkarIndex">
+
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">تصنيف الذكر:</label>
+                        <select id="editAdhkarCategorySelect" onchange="AdhkarModule.onCategoryChange(this.value)" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface-alt); font-family: inherit; font-size: 13px; color: var(--text-primary);">
+                            <option value="sabah">🌅 أذكار الصباح</option>
+                            <option value="masa">🌙 أذكار المساء</option>
+                            <option value="dhikrList">🕌 أذكار التنبيه الدوري</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">نص الذكر / الدعاء:</label>
+                        <textarea id="editAdhkarTextInput" rows="4" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface-alt); font-family: inherit; font-size: 14px; line-height: 1.8; color: var(--text-primary); resize: vertical;" placeholder="أدخل نص الذكر هنا..."></textarea>
+                    </div>
+
+                    <div id="editAdhkarCountGroup" style="margin-bottom: 20px;">
+                        <label style="font-size: 13px; font-weight: 700; display: block; margin-bottom: 6px;">عدد مرات التكرار:</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="number" id="editAdhkarCountInput" min="1" max="1000" value="1" style="width: 100px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface-alt); font-family: inherit; font-size: 14px; font-weight: 700; color: var(--primary);">
+                            <div style="display: flex; gap: 6px;">
+                                <button class="nav-btn" type="button" onclick="document.getElementById('editAdhkarCountInput').value = 1">1</button>
+                                <button class="nav-btn" type="button" onclick="document.getElementById('editAdhkarCountInput').value = 3">3</button>
+                                <button class="nav-btn" type="button" onclick="document.getElementById('editAdhkarCountInput').value = 7">7</button>
+                                <button class="nav-btn" type="button" onclick="document.getElementById('editAdhkarCountInput').value = 33">33</button>
+                                <button class="nav-btn" type="button" onclick="document.getElementById('editAdhkarCountInput').value = 100">100</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button class="nav-btn" onclick="AdhkarModule.closeEditModal()">إلغاء</button>
+                        <button class="nav-btn btn-special" onclick="AdhkarModule.saveEditDhikr()"><i data-lucide="check"></i> حفظ الذكر</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -366,7 +436,7 @@
                 </div>
                 <div class="modal-body" style="padding: 24px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.0.3</span>
+                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.0.4</span>
                         <span id="updateCurrentVersionLabel" style="font-size: 12px; color: var(--text-muted);">إصدارك: v1.0.0</span>
                     </div>
 

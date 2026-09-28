@@ -4,7 +4,7 @@ import { Storage } from './storage';
 export const UpdaterModule = {
     // Default update URL pointing to user's Google Drive version.json
     defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
-    currentVersion: '1.0.3',
+    currentVersion: '1.0.4',
     latestInfo: null as any,
     isDownloading: false,
 

@@ -12,6 +12,27 @@ export const QuranModule = {
         const settings = Storage.getSettings();
         this.readingMode = (settings.readingMode as 'card' | 'mushaf') || 'card';
         this.applyFontSize(settings.fontSize || 30);
+
+        const view = document.getElementById('readingView');
+        if (view) {
+            view.addEventListener('scroll', () => {
+                const fab = document.getElementById('btnScrollToTop');
+                if (fab) {
+                    if (view.scrollTop > 250) {
+                        fab.classList.add('visible');
+                    } else {
+                        fab.classList.remove('visible');
+                    }
+                }
+            });
+        }
+    },
+
+    scrollToTop(): void {
+        const view = document.getElementById('readingView');
+        if (view) {
+            view.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     },
 
     async loadSurah(surahId: number | string, targetAyah: number | null = null): Promise<Verse[]> {
@@ -136,6 +157,7 @@ export const QuranModule = {
                 </div>
 
                 <div class="reader-controls-group">
+                    <button class="zoom-btn" onclick="QuranModule.scrollToTop()" title="الرجوع إلى أول السورة"><i data-lucide="arrow-up"></i></button>
                     <button class="zoom-btn" onclick="QuranModule.adjustFontSize(2)" title="تكبير الخط">A+</button>
                     <button class="zoom-btn" onclick="QuranModule.adjustFontSize(-2)" title="تصغير الخط">A-</button>
                 </div>

@@ -1,7 +1,7 @@
 {
   "name": "quran-desktop-app",
   "productName": "القرآن الكريم",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "تطبيق القرآن الكريم والأذكار للويندوز بواجهة عصرية وتلاوة صوتية",
   "main": "dist-app/main/main.js",
   "author": "القرآن الكريم",
