@@ -128,13 +128,37 @@
                             </div>
                         </div>
 
+                        <!-- Audio Sync & Ayah Calibration Card -->
+                        <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color);">
+                            <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                                <span style="display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="sliders-horizontal"></i> مزامنة الصوت وتظليل الآيات
+                                </span>
+                                <button class="nav-btn" style="padding: 2px 8px; font-size: 11px;" onclick="PlayerModule.resetTimingOffset()">
+                                    <i data-lucide="rotate-ccw"></i> تلقائي
+                                </button>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6;">
+                                مزامنة مباشرة ودقيقة مع خوادم المصحف الرسمية (Quran.com API). يمكنك تقديم أو تأخير تظليل الآيات بسلاسة لتلائم وتيرة استماعك:
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="range" class="speed-slider" id="settingsTimingOffsetSlider" min="-2" max="2" step="0.1" value="0" oninput="PlayerModule.setTimingOffset(this.value)" style="flex: 1;">
+                                <span id="settingsTimingOffsetBadge" style="font-weight: 800; font-size: 12px; color: var(--primary); min-width: 65px; text-align: center;">0.0 ث</span>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="nav-btn" style="flex: 1; font-size: 11px; justify-content: center;" onclick="PlayerModule.setTimingOffset(-0.3)">-0.3 ث تأخير</button>
+                                <button class="nav-btn" style="flex: 1; font-size: 11px; justify-content: center;" onclick="PlayerModule.setTimingOffset(0)">0.0 ث أصلي</button>
+                                <button class="nav-btn" style="flex: 1; font-size: 11px; justify-content: center;" onclick="PlayerModule.setTimingOffset(0.3)">+0.3 ث تقديم</button>
+                            </div>
+                        </div>
+
                         <!-- Update Status Card (Clean, NO ugly Drive links) -->
                         <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color);">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                 <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                                     <i data-lucide="refresh-cw"></i> التحديث التلقائي
                                 </div>
-                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.2</span>
+                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.3</span>
                             </div>
                             <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
                                 <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
@@ -193,8 +217,13 @@
                     <div class="track-surah" id="playerTrackSurah">سورة الفاتحة</div>
                     <select class="track-reciter-select" id="playerReciterSelect" onchange="PlayerModule.setReciter(this.value)">
                         <option value="alafasy">مشاري راشد العفاسي</option>
-                        <option value="ghamadi">سعد الغامدي</option>
+                        <option value="sudais">عبد الرحمن السديس</option>
                         <option value="shuraim">سعود الشريم</option>
+                        <option value="abdulbaset">عبد الباسط عبد الصمد (مرتل)</option>
+                        <option value="minshawi">محمد صديق المنشاوي (مرتل)</option>
+                        <option value="husary">محمود خليل الحصري</option>
+                        <option value="shatri">أبو بكر الشاطري</option>
+                        <option value="ghamadi">سعد الغامدي</option>
                     </select>
                 </div>
             </div>
@@ -218,13 +247,36 @@
                 </div>
             </div>
 
-            <!-- Right: Speed & Volume Controls -->
+            <!-- Right: Speed, Sync Offset & Volume Controls -->
             <div class="audio-side-features">
                 <!-- My Recitation Speed Slider -->
                 <div class="my-recitation-bar" id="myRecitationBar">
                     <span style="font-size: 13px; display: flex; align-items: center; gap: 4px;"><i data-lucide="gauge"></i> سرعة القراءة:</span>
                     <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="3" oninput="PlayerModule.setMyRecitationSpeed(this.value)">
                     <span id="speedValueLabel" style="font-weight: 800; font-size: 13px; color: var(--gold); min-width: 18px;">3</span>
+                </div>
+
+                <!-- Smooth Audio Sync & Ayah Calibration Popover -->
+                <div class="sync-offset-control" id="syncOffsetControl">
+                    <button class="player-side-btn" id="toggleSyncOffsetBtn" onclick="PlayerModule.toggleSyncOffsetPopover()" title="ضبط وتعديل مزامنة تظليل الآيات">
+                        <i data-lucide="sliders-horizontal"></i>
+                    </button>
+                    <div class="sync-offset-popover" id="syncOffsetPopover">
+                        <div class="sync-popover-header">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="timer"></i> مزامنة التظليل
+                            </span>
+                            <button class="reset-offset-btn" onclick="PlayerModule.resetTimingOffset()" title="إعادة للوضع التلقائي المعتمد">
+                                <i data-lucide="rotate-ccw"></i> تلقائي
+                            </button>
+                        </div>
+                        <div class="sync-popover-slider-row">
+                            <span class="offset-label-min">-2 ث</span>
+                            <input type="range" class="sync-slider" id="timingOffsetSlider" min="-2" max="2" step="0.1" value="0" oninput="PlayerModule.setTimingOffset(this.value)">
+                            <span class="offset-label-max">+2 ث</span>
+                        </div>
+                        <div class="sync-offset-value-badge" id="timingOffsetValueBadge">0.0 ث (تلقائي)</div>
+                    </div>
                 </div>
 
                 <div class="volume-control">
@@ -314,7 +366,7 @@
                 </div>
                 <div class="modal-body" style="padding: 24px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.0.2</span>
+                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.0.3</span>
                         <span id="updateCurrentVersionLabel" style="font-size: 12px; color: var(--text-muted);">إصدارك: v1.0.0</span>
                     </div>
 

@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     volume: 1.0,
     playbackRate: 1.0,
     myRecitationSpeed: 3,
+    timingOffset: 0.0,
     dhikrInterval: 3, // minutes
     dhikrActive: false
 };

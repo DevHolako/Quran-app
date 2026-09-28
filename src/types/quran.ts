@@ -12,6 +12,7 @@ export interface AyahTiming {
     ayahNum: number;
     startTime: number;
     endTime: number;
+    duration?: number;
     element?: HTMLElement | null;
 }
 
@@ -52,6 +53,7 @@ export interface AppSettings {
     volume?: number;
     playbackRate?: number;
     myRecitationSpeed?: number;
+    timingOffset?: number;
     dhikrInterval?: number;
     dhikrActive?: boolean;
     [key: string]: any;

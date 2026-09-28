@@ -1,4 +1,4 @@
-// Audio Player Engine with Multi-Source Fallback & Ayah Synchronization
+// Audio Player Engine with Official Quran.com API Timings & Smooth Calibration Slider
 import type { AyahTiming, Verse } from '../../types/quran';
 import { Storage } from './storage';
 
@@ -11,42 +11,91 @@ export const PlayerModule = {
     lastActiveAyah: -1,
     scrollAnimId: null as number | null,
 
+    // Timing Calibration Offset (seconds, e.g. -0.3s to +0.3s)
+    timingOffset: 0.0,
+    timingCache: {} as Record<string, { audioUrl: string; timestamps: any[] }>,
+
     // My Recitation Mode
     isMyRecitation: false,
     myRecitationAnimId: null as number | null,
     myRecitationSpeed: 3,
 
-    // Reciters and audio sources with calibrated intro timing offsets (Isti'adha & Basmala)
+    // Reciters mapping: with official Quran.com API IDs for exact millisecond verse timings
     reciters: {
         'alafasy': {
             label: 'مشاري راشد العفاسي',
+            quranComId: 7,
             introIstiadha: 3.5,
             introBasmala: 4.2,
             sources: [
                 { baseUrl: 'https://server8.mp3quran.net/afs', ext: '.mp3' },
-                { baseUrl: 'https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy', ext: '.mp3' },
-                { baseUrl: 'https://cdn.mualim.app/mishari-rashid-al-afasy-murattal-hafs', ext: '.opus' }
+                { baseUrl: 'https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy', ext: '.mp3' }
             ]
         },
-        'ghamadi': {
-            label: 'سعد الغامدي',
-            introIstiadha: 3.2,
-            introBasmala: 3.9,
+        'sudais': {
+            label: 'عبد الرحمن السديس',
+            quranComId: 3,
+            introIstiadha: 3.0,
+            introBasmala: 3.8,
             sources: [
-                { baseUrl: 'https://server7.mp3quran.net/s_gmd', ext: '.mp3' },
-                { baseUrl: 'https://cdn.mualim.app/saad-al-ghamdi-murattal', ext: '.opus' }
+                { baseUrl: 'https://server11.mp3quran.net/sds', ext: '.mp3' }
             ]
         },
         'shuraim': {
             label: 'سعود الشريم',
+            quranComId: 10,
             introIstiadha: 2.9,
             introBasmala: 3.4,
             sources: [
-                { baseUrl: 'https://server6.mp3quran.net/shur', ext: '.mp3' },
-                { baseUrl: 'https://cdn.mualim.app/saud-al-shuraim-murattal', ext: '.opus' }
+                { baseUrl: 'https://server6.mp3quran.net/shur', ext: '.mp3' }
+            ]
+        },
+        'abdulbaset': {
+            label: 'عبد الباسط عبد الصمد (مرتل)',
+            quranComId: 2,
+            introIstiadha: 3.2,
+            introBasmala: 4.0,
+            sources: [
+                { baseUrl: 'https://server7.mp3quran.net/basit', ext: '.mp3' }
+            ]
+        },
+        'minshawi': {
+            label: 'محمد صديق المنشاوي (مرتل)',
+            quranComId: 9,
+            introIstiadha: 3.2,
+            introBasmala: 4.0,
+            sources: [
+                { baseUrl: 'https://server10.mp3quran.net/minsh', ext: '.mp3' }
+            ]
+        },
+        'husary': {
+            label: 'محمود خليل الحصري',
+            quranComId: 6,
+            introIstiadha: 3.2,
+            introBasmala: 4.0,
+            sources: [
+                { baseUrl: 'https://server13.mp3quran.net/husr', ext: '.mp3' }
+            ]
+        },
+        'shatri': {
+            label: 'أبو بكر الشاطري',
+            quranComId: 4,
+            introIstiadha: 3.0,
+            introBasmala: 3.8,
+            sources: [
+                { baseUrl: 'https://server11.mp3quran.net/shatri', ext: '.mp3' }
+            ]
+        },
+        'ghamadi': {
+            label: 'سعد الغامدي',
+            quranComId: null,
+            introIstiadha: 3.2,
+            introBasmala: 3.9,
+            sources: [
+                { baseUrl: 'https://server7.mp3quran.net/s_gmd', ext: '.mp3' }
             ]
         }
-    } as Record<string, { label: string; introIstiadha: number; introBasmala: number; sources: Array<{ baseUrl: string; ext: string }> }>,
+    } as Record<string, { label: string; quranComId: number | null; introIstiadha: number; introBasmala: number; sources: Array<{ baseUrl: string; ext: string }> }>,
 
     init(): void {
         this.audio = new Audio();
@@ -54,9 +103,22 @@ export const PlayerModule = {
         this.currentReciter = settings.reciter || 'alafasy';
         this.audio.volume = settings.volume !== undefined ? settings.volume : 1.0;
         this.myRecitationSpeed = settings.myRecitationSpeed || 3;
+        this.timingOffset = settings.timingOffset !== undefined ? settings.timingOffset : 0.0;
 
         this.attachAudioEvents();
         this.updatePlayerUI();
+        this.updateTimingOffsetUI();
+
+        // Close popover when clicking outside
+        document.addEventListener('click', (e: MouseEvent) => {
+            const control = document.getElementById('syncOffsetControl');
+            const popover = document.getElementById('syncOffsetPopover');
+            if (popover && popover.classList.contains('open') && control && !control.contains(e.target as Node)) {
+                popover.classList.remove('open');
+                const btn = document.getElementById('toggleSyncOffsetBtn');
+                if (btn) btn.classList.remove('active');
+            }
+        });
     },
 
     attachAudioEvents(): void {
@@ -75,15 +137,82 @@ export const PlayerModule = {
         });
     },
 
-    onSurahLoaded(surahId: number, _verses?: Verse[]): void {
+    // 1. Fetch Official Verse Timings from Quran.com API
+    async fetchQuranComTimings(quranComId: number, surahId: number): Promise<{ audioUrl: string; timestamps: any[] } | null> {
+        const cacheKey = `${quranComId}_${surahId}`;
+        if (this.timingCache[cacheKey]) {
+            return this.timingCache[cacheKey];
+        }
+
+        try {
+            const res = await fetch(`https://api.quran.com/api/v4/chapter_recitations/${quranComId}/${surahId}?segments=true`);
+            if (!res.ok) throw new Error(`HTTP status ${res.status}`);
+            const data = await res.json();
+            if (data && data.audio_file && Array.isArray(data.audio_file.timestamps) && data.audio_file.timestamps.length > 0) {
+                const result = {
+                    audioUrl: data.audio_file.audio_url,
+                    timestamps: data.audio_file.timestamps
+                };
+                this.timingCache[cacheKey] = result;
+                return result;
+            }
+        } catch (err) {
+            console.warn(`[Quran.com API] Failed to fetch recitation timings for reciter ${quranComId}, surah ${surahId}:`, err);
+        }
+        return null;
+    },
+
+    async loadTimingsForSurah(surahId: number): Promise<void> {
+        const reciterData = this.reciters[this.currentReciter];
+        if (reciterData && reciterData.quranComId) {
+            const apiData = await this.fetchQuranComTimings(reciterData.quranComId, surahId);
+            if (apiData && apiData.timestamps) {
+                this.applyOfficialTimings(apiData.timestamps);
+                return;
+            }
+        }
+        // Fallback calculation for reciters without official segment data or when offline
+        this.calculateAyahTimings();
+    },
+
+    applyOfficialTimings(timestamps: any[]): void {
+        const ayahElements = document.querySelectorAll('[data-ayah]');
+        this.ayahTimings = [];
+
+        timestamps.forEach((t: any, i: number) => {
+            const parts = t.verse_key ? t.verse_key.split(':') : [null, i + 1];
+            const ayahNum = parseInt(parts[1], 10) || (i + 1);
+            const el = (document.getElementById(`ayah-${ayahNum}`) || ayahElements[i]) as HTMLElement | null;
+
+            const startSec = (t.timestamp_from || 0) / 1000;
+            const endSec = (t.timestamp_to || 0) / 1000;
+            const durationSec = Math.abs(endSec - startSec);
+
+            this.ayahTimings.push({
+                index: i,
+                ayahNum: ayahNum,
+                startTime: startSec,
+                endTime: endSec > startSec ? endSec : startSec + Math.max(durationSec, 2),
+                duration: durationSec,
+                element: el
+            });
+        });
+
+        this.lastActiveAyah = -1;
+    },
+
+    async onSurahLoaded(surahId: number, _verses?: Verse[]): Promise<void> {
         this.currentSurah = surahId;
         const quranMod = (window as any).QuranModule;
         const surahInfo = quranMod ? quranMod.getSurahInfo(surahId) : { name: `سورة ${surahId}` };
         const titleEl = document.getElementById('playerTrackSurah');
         if (titleEl) titleEl.textContent = `سورة ${surahInfo.name}`;
 
+        // Preload timings in background so ayah click jumps immediately work
+        await this.loadTimingsForSurah(surahId);
+
         if (this.isPlaying) {
-            this.playSurah(this.currentSurah);
+            await this.playSurah(this.currentSurah);
         }
     },
 
@@ -106,20 +235,47 @@ export const PlayerModule = {
 
         this.updatePlayBtn('loading');
 
-        const paddedSurah = String(surahId).padStart(3, '0');
+        let audioUrl = '';
+        let officialTimings: any[] | null = null;
+
+        // 1. Try Quran.com Official API (with exact millisecond timestamps)
+        if (reciterData.quranComId) {
+            const apiData = await this.fetchQuranComTimings(reciterData.quranComId, surahId);
+            if (apiData) {
+                audioUrl = apiData.audioUrl;
+                officialTimings = apiData.timestamps;
+            }
+        }
+
         let success = false;
-
-        for (let i = 0; i < reciterData.sources.length; i++) {
-            const src = reciterData.sources[i];
-            const url = `${src.baseUrl}/${paddedSurah}${src.ext}`;
-
+        if (audioUrl) {
             try {
-                this.audio.src = url;
+                this.audio.src = audioUrl;
                 await this.audio.play();
                 success = true;
-                break;
-            } catch (err) {
-                console.warn(`Source ${i + 1} failed for ${this.currentReciter}:`, err);
+                if (officialTimings) {
+                    this.applyOfficialTimings(officialTimings);
+                }
+            } catch (e) {
+                console.warn('[Audio] Failed to stream from Quran.com audio, falling back to static CDN:', e);
+            }
+        }
+
+        // 2. Static CDN Fallback if official API stream fails or reciter is not on Quran.com
+        if (!success) {
+            const paddedSurah = String(surahId).padStart(3, '0');
+            for (let i = 0; i < reciterData.sources.length; i++) {
+                const src = reciterData.sources[i];
+                const fallbackUrl = `${src.baseUrl}/${paddedSurah}${src.ext}`;
+                try {
+                    this.audio.src = fallbackUrl;
+                    await this.audio.play();
+                    success = true;
+                    this.calculateAyahTimings();
+                    break;
+                } catch (err) {
+                    console.warn(`Source ${i + 1} failed for ${this.currentReciter}:`, err);
+                }
             }
         }
 
@@ -130,27 +286,25 @@ export const PlayerModule = {
         }
     },
 
-
     getIntroTimings(surahId: number): { istiadhaDuration: number; basmalaDuration: number; totalIntro: number } {
         const reciter = this.reciters[this.currentReciter] || this.reciters['alafasy'];
         const istiadhaDuration = reciter.introIstiadha || 3.5;
-        
         let basmalaDuration = 0;
-        // In Surah 1 (Al-Fatiha), Basmala is Ayah 1, so it shouldn't be counted in intro
-        // In Surah 9 (At-Tawbah), there is no Basmala
         if (surahId !== 1 && surahId !== 9) {
             basmalaDuration = reciter.introBasmala || 4.0;
         }
-
         const totalIntro = istiadhaDuration + basmalaDuration;
         return { istiadhaDuration, basmalaDuration, totalIntro };
     },
 
     onMetadataLoaded(): void {
-        this.calculateAyahTimings();
+        if (this.ayahTimings.length === 0) {
+            this.calculateAyahTimings();
+        }
         this.updateTimeDisplay();
     },
 
+    // Proportional fallback timing for offline / non-segmented reciters
     calculateAyahTimings(): void {
         const duration = this.audio.duration;
         if (!duration || isNaN(duration)) return;
@@ -171,7 +325,6 @@ export const PlayerModule = {
             totalLength += len;
         });
 
-        // Compute actual verses duration excluding intro Isti'adha & Basmala
         const versesDuration = Math.max(1, duration - totalIntro);
         this.ayahTimings = [];
         let accumulated = totalIntro;
@@ -183,6 +336,7 @@ export const PlayerModule = {
                 ayahNum: i + 1,
                 startTime: accumulated,
                 endTime: accumulated + share,
+                duration: share,
                 element: el as HTMLElement
             });
             accumulated += share;
@@ -209,19 +363,26 @@ export const PlayerModule = {
             }
 
             const t = this.audio.currentTime;
-            const { istiadhaDuration, totalIntro } = this.getIntroTimings(this.currentSurah);
+            // Apply user's smooth timing calibration offset
+            const effectiveTime = t + (this.timingOffset || 0);
 
-            if (t < istiadhaDuration) {
-                this.highlightIntro('istiadha');
-            } else if (t < totalIntro) {
-                this.highlightIntro('basmala');
-            } else {
-                this.clearIntroHighlight();
-                const active = this.ayahTimings.find(x => t >= x.startTime && t < x.endTime);
+            if (this.ayahTimings.length > 0) {
+                const firstStart = this.ayahTimings[0].startTime;
 
-                if (active && active.index !== this.lastActiveAyah) {
-                    this.lastActiveAyah = active.index;
-                    this.highlightActiveAyah(active.ayahNum);
+                if (effectiveTime < firstStart && firstStart > 1.5) {
+                    const { istiadhaDuration } = this.getIntroTimings(this.currentSurah);
+                    if (effectiveTime < istiadhaDuration) {
+                        this.highlightIntro('istiadha');
+                    } else {
+                        this.highlightIntro('basmala');
+                    }
+                } else {
+                    this.clearIntroHighlight();
+                    const active = this.ayahTimings.find(x => effectiveTime >= x.startTime && effectiveTime < x.endTime);
+                    if (active && active.index !== this.lastActiveAyah) {
+                        this.lastActiveAyah = active.index;
+                        this.highlightActiveAyah(active.ayahNum);
+                    }
                 }
             }
 
@@ -280,13 +441,20 @@ export const PlayerModule = {
         }
     },
 
-    seekToAyah(ayahNum: number): void {
+    async seekToAyah(ayahNum: number): Promise<void> {
+        if (this.ayahTimings.length === 0) {
+            await this.loadTimingsForSurah(this.currentSurah);
+        }
+
         const timing = this.ayahTimings.find(x => x.ayahNum === ayahNum);
         if (timing) {
+            if (!this.audio.src || this.audio.src === '' || this.audio.src === window.location.href) {
+                await this.playSurah(this.currentSurah);
+            }
             this.audio.currentTime = timing.startTime;
             this.highlightActiveAyah(ayahNum);
             if (!this.isPlaying) {
-                this.audio.play();
+                await this.audio.play();
             }
         }
     },
@@ -313,15 +481,12 @@ export const PlayerModule = {
 
         // Immediately reflect seeked position in highlight
         const t = this.audio.currentTime;
-        const { istiadhaDuration, totalIntro } = this.getIntroTimings(this.currentSurah);
-        if (t < istiadhaDuration) {
-            this.highlightIntro('istiadha');
-        } else if (t < totalIntro) {
-            this.highlightIntro('basmala');
-        } else {
-            this.clearIntroHighlight();
-            const active = this.ayahTimings.find(x => t >= x.startTime && t < x.endTime);
+        const effectiveTime = t + (this.timingOffset || 0);
+
+        if (this.ayahTimings.length > 0) {
+            const active = this.ayahTimings.find(x => effectiveTime >= x.startTime && effectiveTime < x.endTime);
             if (active) {
+                this.clearIntroHighlight();
                 this.lastActiveAyah = active.index;
                 this.highlightActiveAyah(active.ayahNum);
             }
@@ -356,11 +521,12 @@ export const PlayerModule = {
         }
     },
 
-    setReciter(reciterId: string): void {
+    async setReciter(reciterId: string): Promise<void> {
         this.currentReciter = reciterId;
         Storage.saveSettings({ reciter: reciterId });
+        await this.loadTimingsForSurah(this.currentSurah);
         if (this.isPlaying) {
-            this.playSurah(this.currentSurah);
+            await this.playSurah(this.currentSurah);
         }
     },
 
@@ -368,6 +534,50 @@ export const PlayerModule = {
         const num = typeof val === 'string' ? parseFloat(val) : val;
         this.audio.volume = num;
         Storage.saveSettings({ volume: num });
+    },
+
+    // ========================================================
+    // SMOOTH TIMING OFFSET SLIDER & POPUP
+    // ========================================================
+    setTimingOffset(val: number | string): void {
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        this.timingOffset = Math.round(num * 10) / 10;
+        Storage.saveSettings({ timingOffset: this.timingOffset });
+        this.updateTimingOffsetUI();
+    },
+
+    resetTimingOffset(): void {
+        this.setTimingOffset(0);
+        const app = (window as any).App;
+        if (app) app.showToast('⏱️ تم إعادة ضبط مزامنة التظليل إلى الوضع التلقائي');
+    },
+
+    updateTimingOffsetUI(): void {
+        const offset = this.timingOffset || 0;
+        const text = offset === 0
+            ? '0.0 ث (تلقائي)'
+            : `${offset > 0 ? '+' : ''}${offset.toFixed(1)} ث (${offset > 0 ? 'تقديم' : 'تأخير'})`;
+
+        // Update player popover slider & badge
+        const slider = document.getElementById('timingOffsetSlider') as HTMLInputElement | null;
+        if (slider) slider.value = String(offset);
+        const badge = document.getElementById('timingOffsetValueBadge');
+        if (badge) badge.textContent = text;
+
+        // Update settings sidebar slider & badge
+        const settingsSlider = document.getElementById('settingsTimingOffsetSlider') as HTMLInputElement | null;
+        if (settingsSlider) settingsSlider.value = String(offset);
+        const settingsBadge = document.getElementById('settingsTimingOffsetBadge');
+        if (settingsBadge) settingsBadge.textContent = `${offset > 0 ? '+' : ''}${offset.toFixed(1)} ث`;
+    },
+
+    toggleSyncOffsetPopover(): void {
+        const popover = document.getElementById('syncOffsetPopover');
+        const btn = document.getElementById('toggleSyncOffsetBtn');
+        if (popover) {
+            popover.classList.toggle('open');
+            if (btn) btn.classList.toggle('active', popover.classList.contains('open'));
+        }
     },
 
     formatTime(sec: number): string {

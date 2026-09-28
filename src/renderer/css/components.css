@@ -377,6 +377,110 @@
     cursor: pointer;
 }
 
+/* Audio Timing Calibration & Sync Offset */
+.sync-offset-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.player-side-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 7px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.player-side-btn:hover, .player-side-btn.active {
+    color: var(--primary);
+    background: var(--hover-bg);
+}
+
+.sync-offset-popover {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    padding: 14px 16px;
+    width: 250px;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sync-offset-popover.open {
+    display: flex;
+}
+
+.sync-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.reset-offset-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 2px 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.reset-offset-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.sync-popover-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sync-slider {
+    flex: 1;
+    height: 6px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.offset-label-min, .offset-label-max {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.sync-offset-value-badge {
+    background: var(--bg-surface-alt);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    color: var(--primary);
+    border: 1px solid var(--border-color);
+}
+
 /* My Recitation Auto-Scroll Bar */
 .my-recitation-bar {
     display: none;
