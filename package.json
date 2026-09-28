@@ -1,0 +1,46 @@
+{
+  "name": "quran-desktop-app",
+  "productName": "القرآن الكريم",
+  "version": "1.0.1",
+  "description": "تطبيق القرآن الكريم والأذكار للويندوز بواجهة عصرية وتلاوة صوتية",
+  "main": "src/main/main.js",
+  "author": "القرآن الكريم",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "dist:nsis": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.quran.desktop",
+    "productName": "القرآن الكريم",
+    "copyright": "وقف لله تعالى",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "القرآن الكريم",
+      "artifactName": "Quran_App_Setup_${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Quran_App_${version}.${ext}"
+    }
+  }
+}

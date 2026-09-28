@@ -1,0 +1,210 @@
+// Client-Side Auto-Updater Module
+const UpdaterModule = {
+    // Default update URL pointing to user's Google Drive version.json
+    defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
+    currentVersion: '1.0.0',
+    latestInfo: null,
+    isDownloading: false,
+
+    async init() {
+        if (window.desktopAPI && window.desktopAPI.getAppVersion) {
+            this.currentVersion = await window.desktopAPI.getAppVersion();
+        }
+
+        // Set version badge in UI
+        const badge = document.getElementById('appVersionLabel');
+        if (badge) badge.textContent = `v${this.currentVersion}`;
+
+        // Populate update URL input in settings
+        const input = document.getElementById('updateUrlInput');
+        if (input) {
+            input.value = this.getUpdateUrl();
+        }
+
+        // Setup download progress listener
+        if (window.desktopAPI && window.desktopAPI.onDownloadProgress) {
+            window.desktopAPI.onDownloadProgress((progress) => {
+                this.updateDownloadProgress(progress);
+            });
+        }
+
+        // Check for updates quietly 4 seconds after launch
+        setTimeout(() => {
+            this.checkForUpdates(false);
+        }, 4000);
+
+        // Background loop: check automatically every 20 minutes
+        setInterval(() => {
+            this.checkForUpdates(false);
+        }, 20 * 60 * 1000);
+    },
+
+    getUpdateUrl() {
+        const saved = Storage.get('custom_update_url', null);
+        return saved || this.defaultUpdateUrl;
+    },
+
+    setUpdateUrl(url) {
+        const trimmed = url.trim();
+        Storage.set('custom_update_url', trimmed);
+        App.showToast('✅ تم حفظ رابط التحديث');
+    },
+
+    async checkForUpdates(isManual = false) {
+        if (!window.desktopAPI || !window.desktopAPI.checkForUpdates) {
+            if (isManual) App.showToast('⚠️ خدمة التحديث تعمل داخل تطبيق سطح المكتب فقط');
+            return;
+        }
+
+        const updateUrl = this.getUpdateUrl();
+        if (!updateUrl) {
+            if (isManual) App.showToast('⚠️ يرجى إدخال رابط التحديث أولاً في الإعدادات');
+            return;
+        }
+
+        if (isManual) {
+            App.showToast('🔍 جاري التحقق من وجود تحديثات...');
+        }
+
+        try {
+            const res = await window.desktopAPI.checkForUpdates(updateUrl);
+            if (!res.success) {
+                if (isManual) {
+                    App.showToast(`⚠️ تعذر فحص التحديث: ${res.error || 'خطأ في الاتصال'}`);
+                }
+                return;
+            }
+
+            if (res.hasUpdate) {
+                this.latestInfo = res;
+                this.showUpdateBanner(res);
+
+                if (isManual) {
+                    this.showUpdateModal(res);
+                } else if (window.desktopAPI && window.desktopAPI.showNotification) {
+                    // Notify desktop in background
+                    window.desktopAPI.showNotification(
+                        'القرآن الكريم',
+                        `🎉 يتوفر تحديث جديد للتطبيق (v${res.latestVersion}) - اضغط للتثبيت`
+                    );
+                }
+            } else {
+                if (isManual) {
+                    App.showToast(`✅ أنت تستخدم أحدث إصدار بالفعل (v${this.currentVersion})`);
+                }
+            }
+        } catch (err) {
+            console.error('Update check error:', err);
+            if (isManual) App.showToast('⚠️ حدث خطأ أثناء التحقق من التحديث');
+        }
+    },
+
+    showUpdateBanner(info) {
+        const banner = document.getElementById('updateTopBanner');
+        const textEl = document.getElementById('updateBannerText');
+        if (textEl) {
+            textEl.textContent = `🎉 يتوفر تحديث جديد للمصحف الشريف (الإصدار v${info.latestVersion}) - اضغط للتحديث!`;
+        }
+        if (banner) {
+            banner.classList.add('visible');
+        }
+    },
+
+    dismissTopBanner() {
+        const banner = document.getElementById('updateTopBanner');
+        if (banner) {
+            banner.classList.remove('visible');
+        }
+    },
+
+    openUpdateModal() {
+        if (this.latestInfo) {
+            this.showUpdateModal(this.latestInfo);
+        } else {
+            this.checkForUpdates(true);
+        }
+    },
+
+    showUpdateModal(info) {
+        const modal = document.getElementById('updateModal');
+        const verEl = document.getElementById('updateNewVersionLabel');
+        const currentVerEl = document.getElementById('updateCurrentVersionLabel');
+        const notesEl = document.getElementById('updateNotesBox');
+        const progressBox = document.getElementById('updateProgressSection');
+        const actionsBox = document.getElementById('updateActionsSection');
+
+        if (verEl) verEl.textContent = `الإصدار الجديد: v${info.latestVersion}`;
+        if (currentVerEl) currentVerEl.textContent = `إصدارك الحالي: v${info.currentVersion}`;
+        if (notesEl) {
+            notesEl.innerHTML = info.changelog 
+                ? `<div style="white-space: pre-wrap;">${info.changelog}</div>` 
+                : 'يتضمن هذا التحديث تحسينات في الأداء وإصلاحات عامة.';
+        }
+
+        if (progressBox) progressBox.style.display = 'none';
+        if (actionsBox) actionsBox.style.display = 'flex';
+
+        if (modal) modal.classList.add('open');
+    },
+
+    closeUpdateModal() {
+        if (this.isDownloading) return; // prevent closing during download
+        const modal = document.getElementById('updateModal');
+        if (modal) modal.classList.remove('open');
+    },
+
+    async startDownload() {
+        if (!this.latestInfo || !this.latestInfo.downloadUrl) {
+            App.showToast('⚠️ رابط تحميل التحديث غير متوفر');
+            return;
+        }
+
+        this.isDownloading = true;
+        const progressBox = document.getElementById('updateProgressSection');
+        const actionsBox = document.getElementById('updateActionsSection');
+
+        if (actionsBox) actionsBox.style.display = 'none';
+        if (progressBox) progressBox.style.display = 'block';
+
+        this.updateDownloadProgress({ percent: 0, receivedBytes: 0, totalBytes: 0 });
+
+        try {
+            const res = await window.desktopAPI.downloadUpdate(this.latestInfo.downloadUrl);
+            if (!res.success) {
+                this.isDownloading = false;
+                if (actionsBox) actionsBox.style.display = 'flex';
+                if (progressBox) progressBox.style.display = 'none';
+                App.showToast(`⚠️ فشل التحميل: ${res.error || 'خطأ غير معروف'}`);
+            }
+        } catch (err) {
+            this.isDownloading = false;
+            if (actionsBox) actionsBox.style.display = 'flex';
+            if (progressBox) progressBox.style.display = 'none';
+            App.showToast('⚠️ حدث خطأ أثناء تحميل التحديث');
+        }
+    },
+
+    updateDownloadProgress({ percent, receivedBytes, totalBytes }) {
+        const fill = document.getElementById('updateProgressFill');
+        const percentLabel = document.getElementById('updateProgressPercent');
+        const bytesLabel = document.getElementById('updateProgressBytes');
+
+        if (fill) fill.style.width = `${percent}%`;
+        if (percentLabel) percentLabel.textContent = `${percent}%`;
+
+        if (bytesLabel && totalBytes > 0) {
+            const mbReceived = (receivedBytes / (1024 * 1024)).toFixed(1);
+            const mbTotal = (totalBytes / (1024 * 1024)).toFixed(1);
+            bytesLabel.textContent = `${mbReceived} MB / ${mbTotal} MB`;
+        }
+    },
+
+    openDownloadInBrowser() {
+        if (this.latestInfo && this.latestInfo.downloadUrl && window.desktopAPI && window.desktopAPI.openExternalUrl) {
+            window.desktopAPI.openExternalUrl(this.latestInfo.downloadUrl);
+            this.closeUpdateModal();
+        }
+    }
+};
+
+window.UpdaterModule = UpdaterModule;

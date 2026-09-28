@@ -1,0 +1,303 @@
+/* Quranic Typography & Layout Styles */
+
+.quran-container {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+/* Surah Ornate Header */
+.surah-header-banner {
+    position: relative;
+    background: var(--bg-surface);
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px 30px;
+    margin-bottom: 28px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.surah-header-banner::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--gold-gradient);
+}
+
+.surah-ornament-top {
+    font-size: 20px;
+    color: var(--gold);
+    margin-bottom: 4px;
+    letter-spacing: 4px;
+}
+
+.surah-name-arabic {
+    font-family: var(--font-quran);
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 6px 0;
+    line-height: 1.2;
+}
+
+.surah-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.surah-meta-badge {
+    background: var(--bg-surface-alt);
+    border: 1px solid var(--border-color);
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Basmala Calligraphy Presentation */
+.basmala-banner {
+    text-align: center;
+    font-family: var(--font-quran);
+    font-size: 38px;
+    color: var(--primary);
+    padding: 16px 20px 24px;
+    margin-bottom: 20px;
+    user-select: text;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Reader Toolbar Controls */
+.reader-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 24px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.reader-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mode-toggle-group {
+    display: flex;
+    background: var(--bg-surface-alt);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.mode-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-btn.active {
+    background: var(--bg-surface);
+    color: var(--primary);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface-alt);
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.zoom-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* ========================================================
+   CARD READING MODE
+   ======================================================== */
+.card-mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ayah-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 20px 24px;
+    position: relative;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    scroll-margin-top: 100px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.ayah-card:hover {
+    border-color: var(--border-color);
+    box-shadow: var(--card-shadow);
+}
+
+.ayah-card.active-ayah {
+    background: var(--active-ayah-bg);
+    border-color: var(--active-ayah-border);
+    box-shadow: 0 0 0 2px var(--active-ayah-border), 0 8px 24px rgba(212, 175, 55, 0.2);
+    transform: scale(1.008);
+}
+
+.ayah-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.ayah-number-badge {
+    background: var(--bg-surface-alt);
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ayah-card.active-ayah .ayah-number-badge {
+    background: var(--gold);
+    color: #3b2314;
+    border-color: var(--gold);
+}
+
+.ayah-actions-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ayah-action-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.ayah-action-btn:hover {
+    color: var(--primary);
+    background: var(--hover-bg);
+    border-color: var(--border-color);
+}
+
+.ayah-action-btn.bookmarked {
+    color: #e67e22;
+    background: rgba(230, 126, 34, 0.1);
+    border-color: rgba(230, 126, 34, 0.3);
+}
+
+.ayah-arabic-text {
+    font-family: var(--font-quran);
+    font-size: var(--quran-font-size);
+    line-height: var(--quran-line-height);
+    color: var(--text-primary);
+    text-align: justify;
+    text-justify: amiri;
+    direction: rtl;
+    user-select: text;
+}
+
+/* ========================================================
+   CONTINUOUS MUS'HAF READING MODE
+   ======================================================== */
+.mushaf-mode-flow {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 36px 44px;
+    box-shadow: var(--card-shadow);
+    text-align: justify;
+    direction: rtl;
+    line-height: calc(var(--quran-line-height) + 0.3);
+}
+
+.mushaf-ayah-span {
+    font-family: var(--font-quran);
+    font-size: var(--quran-font-size);
+    color: var(--text-primary);
+    padding: 2px 4px;
+    border-radius: 6px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.mushaf-ayah-span:hover {
+    background: var(--hover-bg);
+}
+
+.mushaf-ayah-span.active-ayah {
+    background: var(--active-ayah-bg);
+    color: var(--primary);
+    box-shadow: 0 0 0 1px var(--active-ayah-border);
+}
+
+.mushaf-ayah-end {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: calc(var(--quran-font-size) * 0.55);
+    font-weight: 700;
+    margin: 0 6px;
+    vertical-align: middle;
+    user-select: none;
+}
+
+.mushaf-ayah-end::before {
+    content: ' ۝';
+    font-size: 1.3em;
+    margin-left: 2px;
+}
