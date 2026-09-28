@@ -1,5 +1,6 @@
-// Complete 114 Surahs metadata
-const SURAHS_DATA = [
+import type { SurahItem } from '../../types/quran';
+
+export const SURAHS_DATA: SurahItem[] = [
     { id: 1, name: 'الفاتحة', english: 'Al-Fatiha', ayahs: 7, type: 'مكية', juz: 1 },
     { id: 2, name: 'البقرة', english: 'Al-Baqarah', ayahs: 286, type: 'مدنية', juz: 1 },
     { id: 3, name: 'آل عمران', english: 'Ali \'Imran', ayahs: 200, type: 'مدنية', juz: 3 },
@@ -116,6 +117,4 @@ const SURAHS_DATA = [
     { id: 114, name: 'الناس', english: 'An-Nas', ayahs: 6, type: 'مكية', juz: 30 }
 ];
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { SURAHS_DATA };
-}
+(window as any).SURAHS_DATA = SURAHS_DATA;

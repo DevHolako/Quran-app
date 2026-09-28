@@ -1,18 +1,24 @@
 // Quran Fetcher & Renderer Module
-const QuranModule = {
-    currentSurahId: 1,
-    currentVerses: [],
-    readingMode: 'card', // 'card' or 'mushaf'
+import type { SurahItem, Verse } from '../../types/quran';
+import { SURAHS_DATA } from './quran-data';
+import { Storage } from './storage';
 
-    async init() {
+export const QuranModule = {
+    currentSurahId: 1,
+    currentVerses: [] as Verse[],
+    readingMode: 'card' as 'card' | 'mushaf', // 'card' or 'mushaf'
+
+    async init(): Promise<void> {
         const settings = Storage.getSettings();
-        this.readingMode = settings.readingMode || 'card';
+        this.readingMode = (settings.readingMode as 'card' | 'mushaf') || 'card';
         this.applyFontSize(settings.fontSize || 30);
     },
 
-    async loadSurah(surahId, targetAyah = null) {
-        this.currentSurahId = parseInt(surahId);
+    async loadSurah(surahId: number | string, targetAyah: number | null = null): Promise<Verse[]> {
+        this.currentSurahId = typeof surahId === 'string' ? parseInt(surahId, 10) : surahId;
         const container = document.getElementById('quranContent');
+        if (!container) return [];
+
         container.innerHTML = `
             <div style="text-align:center; padding: 60px 20px; color: var(--primary);">
                 <div style="font-size: 36px; margin-bottom: 12px; animation: spin 2s linear infinite;">⏳</div>
@@ -22,8 +28,8 @@ const QuranModule = {
 
         try {
             // Check offline cache first
-            let cached = Storage.getCachedSurah(this.currentSurahId);
-            let verses = null;
+            const cached = Storage.getCachedSurah(this.currentSurahId);
+            let verses: Verse[] | null = null;
 
             if (cached && cached.verses && cached.verses.length > 0) {
                 verses = cached.verses;
@@ -35,15 +41,17 @@ const QuranModule = {
                 if (!data.data || !data.data.ayahs) throw new Error('بيانات غير مكتملة');
                 verses = data.data.ayahs;
                 // Cache for offline usage
-                Storage.cacheSurah(this.currentSurahId, verses);
+                if (verses) {
+                    Storage.cacheSurah(this.currentSurahId, verses);
+                }
             }
 
-            this.currentVerses = verses;
+            this.currentVerses = verses || [];
             this.renderSurah();
 
             // Update Audio Player current surah
-            if (window.PlayerModule) {
-                window.PlayerModule.onSurahLoaded(this.currentSurahId, verses);
+            if ((window as any).PlayerModule) {
+                (window as any).PlayerModule.onSurahLoaded(this.currentSurahId, verses);
             }
 
             // Update UI sidebar active state
@@ -54,7 +62,7 @@ const QuranModule = {
                 setTimeout(() => this.scrollToAyah(targetAyah), 400);
             }
 
-            return verses;
+            return this.currentVerses;
         } catch (err) {
             console.error('Failed to load surah:', err);
             container.innerHTML = `
@@ -70,16 +78,18 @@ const QuranModule = {
         }
     },
 
-    getSurahInfo(id) {
-        return SURAHS_DATA.find(s => s.id === id) || { id, name: `سورة ${id}`, ayahs: 0, type: 'مكية', juz: 1 };
+    getSurahInfo(id: number): SurahItem {
+        return SURAHS_DATA.find(s => s.id === id) || { id, name: `سورة ${id}`, english: '', ayahs: 0, type: 'مكية', juz: 1 };
     },
 
-    renderSurah() {
+    renderSurah(): void {
         const container = document.getElementById('quranContent');
+        if (!container) return;
+
         const surah = this.getSurahInfo(this.currentSurahId);
 
         // Header Banner
-        let headerHtml = `
+        const headerHtml = `
             <div class="surah-header-banner">
                 <div class="surah-ornament-top">﷽</div>
                 <div class="surah-name-arabic">سورة ${surah.name}</div>
@@ -98,7 +108,7 @@ const QuranModule = {
         }
 
         // Reader controls
-        let controlsHtml = `
+        const controlsHtml = `
             <div class="reader-controls-bar">
                 <div class="reader-controls-group">
                     <div class="mode-toggle-group">
@@ -167,48 +177,49 @@ const QuranModule = {
         `;
     },
 
-    setMode(mode) {
+    setMode(mode: 'card' | 'mushaf'): void {
         if (this.readingMode === mode) return;
         this.readingMode = mode;
         Storage.saveSettings({ readingMode: mode });
         this.renderSurah();
     },
 
-    adjustFontSize(delta) {
+    adjustFontSize(delta: number): void {
         const settings = Storage.getSettings();
-        let newSize = Math.max(20, Math.min(46, (settings.fontSize || 30) + delta));
+        const newSize = Math.max(20, Math.min(46, (settings.fontSize || 30) + delta));
         this.applyFontSize(newSize);
         Storage.saveSettings({ fontSize: newSize });
     },
 
-    applyFontSize(size) {
+    applyFontSize(size: number): void {
         document.documentElement.style.setProperty('--quran-font-size', `${size}px`);
     },
 
-    scrollToAyah(ayahNumber) {
+    scrollToAyah(ayahNumber: number): void {
         const el = document.getElementById(`ayah-${ayahNumber}`);
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             el.classList.add('active-ayah');
             setTimeout(() => {
-                if (!window.PlayerModule || !window.PlayerModule.isPlaying) {
+                if (!(window as any).PlayerModule || !(window as any).PlayerModule.isPlaying) {
                     el.classList.remove('active-ayah');
                 }
             }, 3000);
         }
     },
 
-    toggleBookmark(surahId, ayahNumber) {
+    toggleBookmark(surahId: number, ayahNumber: number): void {
         const surah = this.getSurahInfo(surahId);
         const verse = this.currentVerses[ayahNumber - 1];
         const isCurrently = Storage.isBookmarked(surahId, ayahNumber);
+        const app = (window as any).App;
 
         if (isCurrently) {
             Storage.removeBookmark(surahId, ayahNumber);
-            App.showToast(`تمت إزالة علامة الآية ${ayahNumber}`);
+            if (app) app.showToast(`تمت إزالة علامة الآية ${ayahNumber}`);
         } else {
             Storage.addBookmark(surahId, ayahNumber, surah.name, verse ? verse.text : '');
-            App.showToast(`📌 تم حفظ علامة عند ${surah.name} : الآية ${ayahNumber}`);
+            if (app) app.showToast(`📌 تم حفظ علامة عند ${surah.name} : الآية ${ayahNumber}`);
         }
 
         // Update button appearance
@@ -219,25 +230,27 @@ const QuranModule = {
         }
 
         // Refresh bookmarks sidebar if open
-        if (window.App) window.App.renderBookmarksList();
+        if (app) app.renderBookmarksList();
     },
 
-    copyVerseText(surahId, ayahNumber) {
+    copyVerseText(surahId: number, ayahNumber: number): void {
         const verse = this.currentVerses[ayahNumber - 1];
         const surah = this.getSurahInfo(surahId);
         if (verse) {
             const textToCopy = `﴿ ${verse.text} ﴾ [${surah.name}: ${ayahNumber}]`;
             navigator.clipboard.writeText(textToCopy).then(() => {
-                App.showToast('📋 تم نسخ الآية الكريمة');
+                const app = (window as any).App;
+                if (app) app.showToast('📋 تم نسخ الآية الكريمة');
             });
         }
     },
 
-    updateSidebarActive(surahId) {
+    updateSidebarActive(surahId: number): void {
         document.querySelectorAll('.surah-list-item').forEach(el => {
-            el.classList.toggle('active', parseInt(el.dataset.id) === surahId);
+            const htmlEl = el as HTMLElement;
+            el.classList.toggle('active', parseInt(htmlEl.dataset.id || '0', 10) === surahId);
         });
     }
 };
 
-window.QuranModule = QuranModule;
+(window as any).QuranModule = QuranModule;

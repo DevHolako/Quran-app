@@ -1,8 +1,10 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification } = require('electron');
-const path = require('path');
+import { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell } from 'electron';
+import * as path from 'path';
+import * as updater from './updater';
+import { UpdateCheckResult, DownloadProgress } from '../types/updater';
 
-let mainWindow = null;
-let tray = null;
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let isQuitting = false;
 
 // Ensure single instance lock
@@ -19,7 +21,7 @@ if (!gotTheLock) {
     });
 }
 
-function createWindow() {
+function createWindow(): void {
     const iconPath = path.join(__dirname, '../../build/icon.ico');
     
     mainWindow = new BrowserWindow({
@@ -43,16 +45,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
     mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
-    });
-
-    // Minimize to tray instead of quitting on close (can be customized)
-    mainWindow.on('close', (event) => {
-        if (!isQuitting) {
-            // Keep running in tray for Dhikr reminders
-            // mainWindow.hide();
-            // event.preventDefault();
-        }
+        if (mainWindow) mainWindow.show();
     });
 
     mainWindow.on('closed', () => {
@@ -62,7 +55,7 @@ function createWindow() {
     createTray(iconPath);
 }
 
-function createTray(iconPath) {
+function createTray(iconPath: string): void {
     try {
         tray = new Tray(iconPath);
         tray.setToolTip('القرآن الكريم والأذكار');
@@ -115,13 +108,13 @@ function createTray(iconPath) {
                 }
             }
         });
-    } catch (e) {
+    } catch (e: any) {
         console.warn('Tray icon creation skipped or unsupported:', e.message);
     }
 }
 
 // IPC Handlers
-ipcMain.handle('show-notification', (event, { title, body }) => {
+ipcMain.handle('show-notification', (_event, { title, body }: { title: string; body: string }) => {
     try {
         if (Notification.isSupported()) {
             const notif = new Notification({
@@ -164,11 +157,9 @@ ipcMain.handle('window-close', () => {
     if (mainWindow) mainWindow.close();
 });
 
-const updater = require('./updater');
-
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-ipcMain.handle('check-for-updates', async (event, updateUrl) => {
+ipcMain.handle('check-for-updates', async (_event, updateUrl: string): Promise<UpdateCheckResult> => {
     try {
         const currentVersion = app.getVersion();
         const updateData = await updater.fetchJsonWithRedirects(updateUrl);
@@ -182,7 +173,7 @@ ipcMain.handle('check-for-updates', async (event, updateUrl) => {
             downloadUrl: updateData.downloadUrl || '',
             releaseDate: updateData.releaseDate || ''
         };
-    } catch (err) {
+    } catch (err: any) {
         return {
             success: false,
             error: err.message
@@ -190,23 +181,22 @@ ipcMain.handle('check-for-updates', async (event, updateUrl) => {
     }
 });
 
-ipcMain.handle('download-update', async (event, downloadUrl) => {
+ipcMain.handle('download-update', async (_event, downloadUrl: string): Promise<{ success: boolean; error?: string }> => {
     try {
-        const destPath = await updater.downloadUpdateFile(downloadUrl, (progress) => {
+        const destPath = await updater.downloadUpdateFile(downloadUrl, (progress: DownloadProgress) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('update-download-progress', progress);
             }
         });
         updater.installAndRestart(destPath);
         return { success: true };
-    } catch (err) {
+    } catch (err: any) {
         return { success: false, error: err.message };
     }
 });
 
-ipcMain.handle('open-external-url', (event, url) => {
+ipcMain.handle('open-external-url', (_event, url: string): boolean => {
     const formatted = updater.formatGoogleDriveUrl(url);
-    const { shell } = require('electron');
     shell.openExternal(formatted || url);
     return true;
 });

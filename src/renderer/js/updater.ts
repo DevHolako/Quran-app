@@ -1,12 +1,14 @@
 // Client-Side Auto-Updater Module
-const UpdaterModule = {
+import { Storage } from './storage';
+
+export const UpdaterModule = {
     // Default update URL pointing to user's Google Drive version.json
     defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
     currentVersion: '1.0.1',
-    latestInfo: null,
+    latestInfo: null as any,
     isDownloading: false,
 
-    async init() {
+    async init(): Promise<void> {
         if (window.desktopAPI && window.desktopAPI.getAppVersion) {
             this.currentVersion = await window.desktopAPI.getAppVersion();
         }
@@ -16,14 +18,14 @@ const UpdaterModule = {
         if (badge) badge.textContent = `v${this.currentVersion}`;
 
         // Populate update URL input in settings
-        const input = document.getElementById('updateUrlInput');
+        const input = document.getElementById('updateUrlInput') as HTMLInputElement | null;
         if (input) {
             input.value = this.getUpdateUrl();
         }
 
         // Setup download progress listener
         if (window.desktopAPI && window.desktopAPI.onDownloadProgress) {
-            window.desktopAPI.onDownloadProgress((progress) => {
+            window.desktopAPI.onDownloadProgress((progress: any) => {
                 this.updateDownloadProgress(progress);
             });
         }
@@ -39,38 +41,40 @@ const UpdaterModule = {
         }, 20 * 60 * 1000);
     },
 
-    getUpdateUrl() {
-        const saved = Storage.get('custom_update_url', null);
+    getUpdateUrl(): string {
+        const saved = Storage.get<string | null>('custom_update_url', null);
         return saved || this.defaultUpdateUrl;
     },
 
-    setUpdateUrl(url) {
+    setUpdateUrl(url: string): void {
         const trimmed = url.trim();
         Storage.set('custom_update_url', trimmed);
-        App.showToast('✅ تم حفظ رابط التحديث');
+        const app = (window as any).App;
+        if (app) app.showToast('✅ تم حفظ رابط التحديث');
     },
 
-    async checkForUpdates(isManual = false) {
+    async checkForUpdates(isManual: boolean = false): Promise<void> {
+        const app = (window as any).App;
         if (!window.desktopAPI || !window.desktopAPI.checkForUpdates) {
-            if (isManual) App.showToast('⚠️ خدمة التحديث تعمل داخل تطبيق سطح المكتب فقط');
+            if (isManual && app) app.showToast('⚠️ خدمة التحديث تعمل داخل تطبيق سطح المكتب فقط');
             return;
         }
 
         const updateUrl = this.getUpdateUrl();
         if (!updateUrl) {
-            if (isManual) App.showToast('⚠️ يرجى إدخال رابط التحديث أولاً في الإعدادات');
+            if (isManual && app) app.showToast('⚠️ يرجى إدخال رابط التحديث أولاً في الإعدادات');
             return;
         }
 
-        if (isManual) {
-            App.showToast('🔍 جاري التحقق من وجود تحديثات...');
+        if (isManual && app) {
+            app.showToast('🔍 جاري التحقق من وجود تحديثات...');
         }
 
         try {
             const res = await window.desktopAPI.checkForUpdates(updateUrl);
             if (!res.success) {
-                if (isManual) {
-                    App.showToast(`⚠️ تعذر فحص التحديث: ${res.error || 'خطأ في الاتصال'}`);
+                if (isManual && app) {
+                    app.showToast(`⚠️ تعذر فحص التحديث: ${res.error || 'خطأ في الاتصال'}`);
                 }
                 return;
             }
@@ -89,17 +93,17 @@ const UpdaterModule = {
                     );
                 }
             } else {
-                if (isManual) {
-                    App.showToast(`✅ أنت تستخدم أحدث إصدار بالفعل (v${this.currentVersion})`);
+                if (isManual && app) {
+                    app.showToast(`✅ أنت تستخدم أحدث إصدار بالفعل (v${this.currentVersion})`);
                 }
             }
         } catch (err) {
             console.error('Update check error:', err);
-            if (isManual) App.showToast('⚠️ حدث خطأ أثناء التحقق من التحديث');
+            if (isManual && app) app.showToast('⚠️ حدث خطأ أثناء التحقق من التحديث');
         }
     },
 
-    showUpdateBanner(info) {
+    showUpdateBanner(info: any): void {
         const banner = document.getElementById('updateTopBanner');
         const textEl = document.getElementById('updateBannerText');
         if (textEl) {
@@ -113,14 +117,14 @@ const UpdaterModule = {
         }
     },
 
-    dismissTopBanner() {
+    dismissTopBanner(): void {
         const banner = document.getElementById('updateTopBanner');
         if (banner) {
             banner.classList.remove('visible');
         }
     },
 
-    openUpdateModal() {
+    openUpdateModal(): void {
         if (this.latestInfo) {
             this.showUpdateModal(this.latestInfo);
         } else {
@@ -128,7 +132,7 @@ const UpdaterModule = {
         }
     },
 
-    showUpdateModal(info) {
+    showUpdateModal(info: any): void {
         const modal = document.getElementById('updateModal');
         const verEl = document.getElementById('updateNewVersionLabel');
         const currentVerEl = document.getElementById('updateCurrentVersionLabel');
@@ -150,15 +154,16 @@ const UpdaterModule = {
         if (modal) modal.classList.add('open');
     },
 
-    closeUpdateModal() {
+    closeUpdateModal(): void {
         if (this.isDownloading) return; // prevent closing during download
         const modal = document.getElementById('updateModal');
         if (modal) modal.classList.remove('open');
     },
 
-    async startDownload() {
+    async startDownload(): Promise<void> {
+        const app = (window as any).App;
         if (!this.latestInfo || !this.latestInfo.downloadUrl) {
-            App.showToast('⚠️ رابط تحميل التحديث غير متوفر');
+            if (app) app.showToast('⚠️ رابط تحميل التحديث غير متوفر');
             return;
         }
 
@@ -172,24 +177,24 @@ const UpdaterModule = {
         this.updateDownloadProgress({ percent: 0, receivedBytes: 0, totalBytes: 0 });
 
         try {
-            const res = await window.desktopAPI.downloadUpdate(this.latestInfo.downloadUrl);
+            const res = await window.desktopAPI!.downloadUpdate(this.latestInfo.downloadUrl);
             if (!res.success) {
                 this.isDownloading = false;
                 if (actionsBox) actionsBox.style.display = 'flex';
                 if (progressBox) progressBox.style.display = 'none';
-                App.showToast(`⚠️ تعذر التحميل التلقائي: ${res.error || ''} - جاري فتح التحميل في المتصفح`);
+                if (app) app.showToast(`⚠️ تعذر التحميل التلقائي: ${res.error || ''} - جاري فتح التحميل في المتصفح`);
                 this.openDownloadInBrowser();
             }
         } catch (err) {
             this.isDownloading = false;
             if (actionsBox) actionsBox.style.display = 'flex';
             if (progressBox) progressBox.style.display = 'none';
-            App.showToast('⚠️ جاري فتح التحميل في المتصفح...');
+            if (app) app.showToast('⚠️ جاري فتح التحميل في المتصفح...');
             this.openDownloadInBrowser();
         }
     },
 
-    updateDownloadProgress({ percent, receivedBytes, totalBytes }) {
+    updateDownloadProgress({ percent, receivedBytes, totalBytes }: { percent: number; receivedBytes: number; totalBytes: number }): void {
         const fill = document.getElementById('updateProgressFill');
         const percentLabel = document.getElementById('updateProgressPercent');
         const bytesLabel = document.getElementById('updateProgressBytes');
@@ -204,7 +209,7 @@ const UpdaterModule = {
         }
     },
 
-    openDownloadInBrowser() {
+    openDownloadInBrowser(): void {
         if (this.latestInfo && this.latestInfo.downloadUrl && window.desktopAPI && window.desktopAPI.openExternalUrl) {
             window.desktopAPI.openExternalUrl(this.latestInfo.downloadUrl);
             this.closeUpdateModal();
@@ -212,4 +217,4 @@ const UpdaterModule = {
     }
 };
 
-window.UpdaterModule = UpdaterModule;
+(window as any).UpdaterModule = UpdaterModule;

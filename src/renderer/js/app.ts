@@ -1,8 +1,17 @@
 // Main Application Bootstrap & UI Controller
-const App = {
+import type { FullBackupData, LastReadState } from '../../types/quran';
+import { Storage } from './storage';
+import { SURAHS_DATA } from './quran-data';
+import { QuranModule } from './quran';
+import { PlayerModule } from './player';
+import { TafsirModule } from './tafsir';
+import { AdhkarModule } from './adhkar';
+import { UpdaterModule } from './updater';
+
+export const App = {
     currentTheme: 'emerald',
 
-    async init() {
+    async init(): Promise<void> {
         const settings = Storage.getSettings();
         this.setTheme(settings.theme || 'emerald');
 
@@ -30,13 +39,13 @@ const App = {
         this.initLucide();
     },
 
-    initLucide() {
+    initLucide(): void {
         if (window.lucide && typeof window.lucide.createIcons === 'function') {
             window.lucide.createIcons();
         }
     },
 
-    setTheme(themeName) {
+    setTheme(themeName: string): void {
         this.currentTheme = themeName;
         document.body.setAttribute('data-theme', themeName);
         Storage.saveSettings({ theme: themeName });
@@ -50,18 +59,18 @@ const App = {
         }
     },
 
-    cycleTheme() {
+    cycleTheme(): void {
         const themes = ['emerald', 'dark', 'sepia'];
         const nextIdx = (themes.indexOf(this.currentTheme) + 1) % themes.length;
         this.setTheme(themes[nextIdx]);
-        const names = { emerald: 'الزمردي الكلاسيكي', dark: 'الوضع الليلي الفاخر', sepia: 'ورق المصحف الدافئ' };
+        const names: Record<string, string> = { emerald: 'الزمردي الكلاسيكي', dark: 'الوضع الليلي الفاخر', sepia: 'ورق المصحف الدافئ' };
         this.showToast(`🎨 تم تفعيل ${names[themes[nextIdx]]}`);
     },
 
     // ========================================================
     // SIDEBAR SURAHS LIST & SEARCH
     // ========================================================
-    renderSurahList(filterQuery = '') {
+    renderSurahList(filterQuery: string = ''): void {
         const container = document.getElementById('sidebarSurahList');
         if (!container) return;
 
@@ -103,25 +112,30 @@ const App = {
         container.innerHTML = html;
     },
 
-    filterSurahs(query) {
+    filterSurahs(query: string): void {
         this.renderSurahList(query);
     },
 
-    switchSidebarTab(tabName) {
+    switchSidebarTab(tabName: string): void {
         document.querySelectorAll('.sidebar-tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.tab === tabName);
+            const htmlTab = t as HTMLElement;
+            t.classList.toggle('active', htmlTab.dataset.tab === tabName);
         });
 
-        document.getElementById('sidebarSurahView').style.display = tabName === 'surahs' ? 'block' : 'none';
-        document.getElementById('sidebarBookmarksView').style.display = tabName === 'bookmarks' ? 'block' : 'none';
-        document.getElementById('sidebarSettingsView').style.display = tabName === 'settings' ? 'block' : 'none';
+        const surahView = document.getElementById('sidebarSurahView');
+        const bookmarksView = document.getElementById('sidebarBookmarksView');
+        const settingsView = document.getElementById('sidebarSettingsView');
+
+        if (surahView) surahView.style.display = tabName === 'surahs' ? 'block' : 'none';
+        if (bookmarksView) bookmarksView.style.display = tabName === 'bookmarks' ? 'block' : 'none';
+        if (settingsView) settingsView.style.display = tabName === 'settings' ? 'block' : 'none';
 
         if (tabName === 'bookmarks') {
             this.renderBookmarksList();
         }
     },
 
-    renderBookmarksList() {
+    renderBookmarksList(): void {
         const container = document.getElementById('bookmarksListContainer');
         if (!container) return;
 
@@ -158,7 +172,7 @@ const App = {
         container.innerHTML = html;
     },
 
-    removeBookmarkItem(surah, ayah) {
+    removeBookmarkItem(surah: number, ayah: number): void {
         Storage.removeBookmark(surah, ayah);
         this.renderBookmarksList();
         this.showToast('تم حذف العلامة المرجعية');
@@ -170,7 +184,7 @@ const App = {
         }
     },
 
-    showResumeBanner(lastRead) {
+    showResumeBanner(lastRead: LastReadState): void {
         const el = document.getElementById('resumeReadingBadge');
         if (el) {
             el.innerHTML = `📖 متابعة القراءة: ${lastRead.surahName} (الآية ${lastRead.ayah})`;
@@ -180,12 +194,12 @@ const App = {
     },
 
     // Friday Al-Kahf Quick Jump
-    openSurahKahf() {
+    openSurahKahf(): void {
         QuranModule.loadSurah(18);
         this.showToast('📖 سورة الكهف - نور ما بين الجمعتين');
     },
 
-    toggleSidebar() {
+    toggleSidebar(): void {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.classList.toggle('collapsed');
     },
@@ -193,7 +207,7 @@ const App = {
     // ========================================================
     // BACKUP & SYNC (Google Drive & Local File)
     // ========================================================
-    createFullBackupData() {
+    createFullBackupData(): FullBackupData {
         return {
             app: 'QuranAppDesktop',
             version: '1.0.1',
@@ -206,7 +220,7 @@ const App = {
         };
     },
 
-    exportBackupFile() {
+    exportBackupFile(): void {
         const data = this.createFullBackupData();
         const json = JSON.stringify(data, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
@@ -222,14 +236,15 @@ const App = {
         this.showToast('✅ تم تصدير النسخة الاحتياطية بنجاح');
     },
 
-    importBackupFile(event) {
-        const file = event.target.files && event.target.files[0];
+    importBackupFile(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input && input.files ? input.files[0] : null;
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const data = JSON.parse(e.target.result);
+                const data = JSON.parse(e.target?.result as string);
                 if (data.settings) Storage.saveSettings(data.settings);
                 if (data.bookmarks) Storage.set('quran_bookmarks', data.bookmarks);
                 if (data.lastRead) Storage.set('quran_last_read', data.lastRead);
@@ -245,7 +260,7 @@ const App = {
         reader.readAsText(file);
     },
 
-    backupToGoogleDrive() {
+    backupToGoogleDrive(): void {
         this.exportBackupFile();
         if (window.desktopAPI && window.desktopAPI.openExternalUrl) {
             window.desktopAPI.openExternalUrl('https://drive.google.com/drive/my-drive');
@@ -256,7 +271,7 @@ const App = {
     // ========================================================
     // TOAST NOTIFICATIONS
     // ========================================================
-    showToast(message, duration = 3000) {
+    showToast(message: string, duration: number = 3000): void {
         const container = document.getElementById('toastContainer');
         if (!container) return;
 
@@ -277,10 +292,11 @@ const App = {
     // ========================================================
     // GLOBAL EVENTS & KEYBOARD SHORTCUTS
     // ========================================================
-    attachGlobalEvents() {
-        document.addEventListener('keydown', (e) => {
+    attachGlobalEvents(): void {
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
             // Space to toggle audio (if not typing in input)
-            if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+            if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(target.tagName)) {
                 e.preventDefault();
                 PlayerModule.togglePlay();
             }
@@ -293,9 +309,9 @@ const App = {
         });
     },
 
-    setupIPCListeners() {
+    setupIPCListeners(): void {
         if (window.desktopAPI && window.desktopAPI.onNavigate) {
-            window.desktopAPI.onNavigate((destination) => {
+            window.desktopAPI.onNavigate((destination: string) => {
                 if (destination === 'adhkar') {
                     AdhkarModule.openAdhkarReader('sabah');
                 } else if (destination === 'kahf') {
@@ -306,7 +322,7 @@ const App = {
     }
 };
 
-window.App = App;
+(window as any).App = App;
 
 // Bootstrap on DOM ready
 document.addEventListener('DOMContentLoaded', () => {

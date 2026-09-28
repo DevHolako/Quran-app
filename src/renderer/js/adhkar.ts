@@ -1,5 +1,8 @@
 // Adhkar, Tasbih & Periodic Reminders Module
-const DEFAULT_ADHKAR_DATA = {
+import type { AdhkarData } from '../../types/quran';
+import { Storage } from './storage';
+
+export const DEFAULT_ADHKAR_DATA: AdhkarData = {
     sabah: [
         { text: 'آية الكرسي: اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ...', count: 1 },
         { text: 'سورة الإخلاص، الفلق، الناس', count: 3 },
@@ -39,9 +42,9 @@ const DEFAULT_ADHKAR_DATA = {
     ]
 };
 
-const AdhkarModule = {
-    data: null,
-    dhikrTimer: null,
+export const AdhkarModule = {
+    data: null as unknown as AdhkarData,
+    dhikrTimer: null as any,
     dhikrIndex: 0,
     isDhikrActive: false,
     dhikrIntervalMin: 3,
@@ -51,7 +54,7 @@ const AdhkarModule = {
     tasbihTarget: 33,
     tasbihPhrase: 'سُبْحَانَ اللَّهِ',
 
-    init() {
+    init(): void {
         this.loadData();
         const settings = Storage.getSettings();
         this.dhikrIntervalMin = settings.dhikrInterval || 3;
@@ -64,8 +67,8 @@ const AdhkarModule = {
         this.updateReminderUI();
     },
 
-    loadData() {
-        const saved = Storage.get('custom_adhkar_data', null);
+    loadData(): void {
+        const saved = Storage.get<AdhkarData | null>('custom_adhkar_data', null);
         if (saved && saved.sabah && saved.masa && saved.dhikrList) {
             this.data = saved;
         } else {
@@ -73,14 +76,14 @@ const AdhkarModule = {
         }
     },
 
-    saveData() {
+    saveData(): void {
         Storage.set('custom_adhkar_data', this.data);
     },
 
     // ========================================================
     // ADHKAR MODAL READER
     // ========================================================
-    openAdhkarReader(type) {
+    openAdhkarReader(type: 'sabah' | 'masa'): void {
         const modal = document.getElementById('adhkarModal');
         const titleEl = document.getElementById('adhkarModalTitle');
         const bodyEl = document.getElementById('adhkarModalBody');
@@ -105,19 +108,19 @@ const AdhkarModule = {
         if (modal) modal.classList.add('open');
     },
 
-    closeAdhkarReader() {
+    closeAdhkarReader(): void {
         const modal = document.getElementById('adhkarModal');
         if (modal) modal.classList.remove('open');
     },
 
-    decrementAdhkarCard(index, originalCount) {
+    decrementAdhkarCard(index: number, _originalCount: number): void {
         const badge = document.getElementById(`adhkar-count-${index}`);
         const card = document.getElementById(`adhkar-item-${index}`);
         if (!badge || !card) return;
 
-        let cur = parseInt(badge.textContent);
+        let cur = parseInt(badge.textContent || '0', 10);
         if (cur > 1) {
-            badge.textContent = cur - 1;
+            badge.textContent = String(cur - 1);
         } else if (cur === 1) {
             badge.textContent = '✓';
             badge.style.background = '#27ae60';
@@ -129,59 +132,62 @@ const AdhkarModule = {
     // ========================================================
     // ELECTRONIC TASBIH (مسبحة إلكترونية)
     // ========================================================
-    openTasbihModal() {
+    openTasbihModal(): void {
         const modal = document.getElementById('tasbihModal');
         this.updateTasbihUI();
         if (modal) modal.classList.add('open');
     },
 
-    closeTasbihModal() {
+    closeTasbihModal(): void {
         const modal = document.getElementById('tasbihModal');
         if (modal) modal.classList.remove('open');
     },
 
-    incrementTasbih() {
+    incrementTasbih(): void {
         this.tasbihCount++;
         this.playClickTone();
         this.updateTasbihUI();
 
         if (this.tasbihTarget > 0 && this.tasbihCount === this.tasbihTarget) {
-            App.showToast(`🎉 أتممت ${this.tasbihTarget} تسبيحة تقبل الله منك!`);
+            const app = (window as any).App;
+            if (app) app.showToast(`🎉 أتممت ${this.tasbihTarget} تسبيحة تقبل الله منك!`);
         }
     },
 
-    resetTasbih() {
+    resetTasbih(): void {
         this.tasbihCount = 0;
         this.updateTasbihUI();
     },
 
-    setTasbihTarget(target) {
-        this.tasbihTarget = parseInt(target);
+    setTasbihTarget(target: number | string): void {
+        this.tasbihTarget = typeof target === 'string' ? parseInt(target, 10) : target;
         this.tasbihCount = 0;
         this.updateTasbihUI();
     },
 
-    setTasbihPhrase(phrase) {
+    setTasbihPhrase(phrase: string): void {
         this.tasbihPhrase = phrase;
         this.tasbihCount = 0;
         this.updateTasbihUI();
     },
 
-    updateTasbihUI() {
+    updateTasbihUI(): void {
         const numEl = document.getElementById('tasbihCountNum');
         const phraseEl = document.getElementById('tasbihDhikrPhrase');
         const labelEl = document.getElementById('tasbihTargetLabel');
 
-        if (numEl) numEl.textContent = this.tasbihCount;
+        if (numEl) numEl.textContent = String(this.tasbihCount);
         if (phraseEl) phraseEl.textContent = this.tasbihPhrase;
         if (labelEl) {
             labelEl.textContent = this.tasbihTarget > 0 ? `الهدف: ${this.tasbihTarget}` : 'حر';
         }
     },
 
-    playClickTone() {
+    playClickTone(): void {
         try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
@@ -198,15 +204,16 @@ const AdhkarModule = {
     // ========================================================
     // PERIODIC DHIKR REMINDERS
     // ========================================================
-    toggleDhikrReminder() {
+    toggleDhikrReminder(): void {
+        const app = (window as any).App;
         if (this.isDhikrActive) {
             this.stopDhikrTimer();
             this.isDhikrActive = false;
-            App.showToast('🔕 تم إيقاف تذكير الذكر');
+            if (app) app.showToast('🔕 تم إيقاف تذكير الذكر');
         } else {
             this.isDhikrActive = true;
             this.startDhikrTimer();
-            App.showToast(`🔔 تم تفعيل تذكير الذكر (كل ${this.dhikrIntervalMin} دقيقة)`);
+            if (app) app.showToast(`🔔 تم تفعيل تذكير الذكر (كل ${this.dhikrIntervalMin} دقيقة)`);
             this.fireDhikrAlert();
         }
 
@@ -214,31 +221,32 @@ const AdhkarModule = {
         this.updateReminderUI();
     },
 
-    startDhikrTimer() {
+    startDhikrTimer(): void {
         this.stopDhikrTimer();
         this.dhikrTimer = setInterval(() => {
             this.fireDhikrAlert();
         }, this.dhikrIntervalMin * 60 * 1000);
     },
 
-    stopDhikrTimer() {
+    stopDhikrTimer(): void {
         if (this.dhikrTimer) {
             clearInterval(this.dhikrTimer);
             this.dhikrTimer = null;
         }
     },
 
-    setIntervalMin(mins) {
-        this.dhikrIntervalMin = parseInt(mins);
+    setIntervalMin(mins: number | string): void {
+        this.dhikrIntervalMin = typeof mins === 'string' ? parseInt(mins, 10) : mins;
         Storage.saveSettings({ dhikrInterval: this.dhikrIntervalMin });
         if (this.isDhikrActive) {
             this.startDhikrTimer();
-            App.showToast(`⏱️ تم ضبط تذكير الذكر كل ${this.dhikrIntervalMin} دقيقة`);
+            const app = (window as any).App;
+            if (app) app.showToast(`⏱️ تم ضبط تذكير الذكر كل ${this.dhikrIntervalMin} دقيقة`);
         }
     },
 
-    fireDhikrAlert() {
-        if (this.data.dhikrList.length === 0) return;
+    fireDhikrAlert(): void {
+        if (!this.data || !this.data.dhikrList || this.data.dhikrList.length === 0) return;
         const dhikr = this.data.dhikrList[this.dhikrIndex % this.data.dhikrList.length];
         this.dhikrIndex++;
 
@@ -248,17 +256,18 @@ const AdhkarModule = {
         }
 
         // In-App Toast
-        App.showToast(`🕌 ${dhikr}`, 6000);
+        const app = (window as any).App;
+        if (app) app.showToast(`🕌 ${dhikr}`, 6000);
         this.playClickTone();
     },
 
-    previewDhikr() {
+    previewDhikr(): void {
         this.fireDhikrAlert();
     },
 
-    updateReminderUI() {
+    updateReminderUI(): void {
         const toggleBtn = document.getElementById('btnToggleDhikr');
-        const intervalSelect = document.getElementById('dhikrIntervalSelect');
+        const intervalSelect = document.getElementById('dhikrIntervalSelect') as HTMLSelectElement | null;
 
         if (toggleBtn) {
             toggleBtn.classList.toggle('active', this.isDhikrActive);
@@ -271,14 +280,14 @@ const AdhkarModule = {
         }
 
         if (intervalSelect) {
-            intervalSelect.value = this.dhikrIntervalMin;
+            intervalSelect.value = String(this.dhikrIntervalMin);
         }
     },
 
     // ========================================================
     // ADHKAR SETTINGS (IMPORT / EXPORT / RESET)
     // ========================================================
-    exportAdhkar() {
+    exportAdhkar(): void {
         const str = JSON.stringify(this.data, null, 2);
         const blob = new Blob([str], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -287,38 +296,42 @@ const AdhkarModule = {
         a.download = `adhkar_backup_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-        App.showToast('⬇️ تم تصدير الأذكار بنجاح');
+        const app = (window as any).App;
+        if (app) app.showToast('⬇️ تم تصدير الأذكار بنجاح');
     },
 
-    importAdhkar(event) {
-        const file = event.target.files[0];
+    importAdhkar(event: Event): void {
+        const target = event.target as HTMLInputElement;
+        const file = target && target.files ? target.files[0] : null;
         if (!file) return;
         const reader = new FileReader();
+        const app = (window as any).App;
         reader.onload = (e) => {
             try {
-                const parsed = JSON.parse(e.target.result);
+                const parsed = JSON.parse(e.target?.result as string);
                 if (parsed.sabah && parsed.masa && parsed.dhikrList) {
                     this.data = parsed;
                     this.saveData();
-                    App.showToast('⬆️ تم استيراد الأذكار بنجاح');
+                    if (app) app.showToast('⬆️ تم استيراد الأذكار بنجاح');
                 } else {
                     throw new Error('ملف غير صالح');
                 }
             } catch (err) {
-                App.showToast('⚠️ فشل استيراد الملف');
+                if (app) app.showToast('⚠️ فشل استيراد الملف');
             }
-            event.target.value = '';
+            target.value = '';
         };
         reader.readAsText(file);
     },
 
-    resetToDefaults() {
+    resetToDefaults(): void {
         if (confirm('هل أنت متأكد من استعادة الأذكار الافتراضية؟')) {
             this.data = JSON.parse(JSON.stringify(DEFAULT_ADHKAR_DATA));
             this.saveData();
-            App.showToast('🔄 تم استعادة الأذكار الافتراضية');
+            const app = (window as any).App;
+            if (app) app.showToast('🔄 تم استعادة الأذكار الافتراضية');
         }
     }
 };
 
-window.AdhkarModule = AdhkarModule;
+(window as any).AdhkarModule = AdhkarModule;

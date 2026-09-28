@@ -1,16 +1,19 @@
 // Audio Player Engine with Multi-Source Fallback & Ayah Synchronization
-const PlayerModule = {
-    audio: null,
+import type { AyahTiming, Verse } from '../../types/quran';
+import { Storage } from './storage';
+
+export const PlayerModule = {
+    audio: null as unknown as HTMLAudioElement,
     isPlaying: false,
     currentSurah: 1,
     currentReciter: 'alafasy',
-    ayahTimings: [],
+    ayahTimings: [] as AyahTiming[],
     lastActiveAyah: -1,
-    scrollAnimId: null,
+    scrollAnimId: null as number | null,
 
     // My Recitation Mode
     isMyRecitation: false,
-    myRecitationAnimId: null,
+    myRecitationAnimId: null as number | null,
     myRecitationSpeed: 3,
 
     // Reciters and audio sources
@@ -37,9 +40,9 @@ const PlayerModule = {
                 { baseUrl: 'https://cdn.mualim.app/saud-al-shuraim-murattal', ext: '.opus' }
             ]
         }
-    },
+    } as Record<string, { label: string; sources: Array<{ baseUrl: string; ext: string }> }>,
 
-    init() {
+    init(): void {
         this.audio = new Audio();
         const settings = Storage.getSettings();
         this.currentReciter = settings.reciter || 'alafasy';
@@ -50,7 +53,7 @@ const PlayerModule = {
         this.updatePlayerUI();
     },
 
-    attachAudioEvents() {
+    attachAudioEvents(): void {
         this.audio.addEventListener('timeupdate', () => this.onTimeUpdate());
         this.audio.addEventListener('loadedmetadata', () => this.onMetadataLoaded());
         this.audio.addEventListener('ended', () => this.onTrackEnded());
@@ -66,9 +69,10 @@ const PlayerModule = {
         });
     },
 
-    onSurahLoaded(surahId, verses) {
+    onSurahLoaded(surahId: number, _verses?: Verse[]): void {
         this.currentSurah = surahId;
-        const surahInfo = QuranModule.getSurahInfo(surahId);
+        const quranMod = (window as any).QuranModule;
+        const surahInfo = quranMod ? quranMod.getSurahInfo(surahId) : { name: `سورة ${surahId}` };
         const titleEl = document.getElementById('playerTrackSurah');
         if (titleEl) titleEl.textContent = `سورة ${surahInfo.name}`;
 
@@ -77,7 +81,7 @@ const PlayerModule = {
         }
     },
 
-    async togglePlay() {
+    async togglePlay(): Promise<void> {
         if (this.isMyRecitation) {
             this.stopMyRecitation();
         }
@@ -89,7 +93,7 @@ const PlayerModule = {
         }
     },
 
-    async playSurah(surahId) {
+    async playSurah(surahId: number): Promise<void> {
         this.currentSurah = surahId;
         const reciterData = this.reciters[this.currentReciter];
         if (!reciterData) return;
@@ -115,23 +119,24 @@ const PlayerModule = {
 
         if (!success) {
             this.updatePlayBtn(false);
-            App.showToast('⚠️ تعذر تشغيل التلاوة. جرب قارئاً آخر.');
+            const app = (window as any).App;
+            if (app) app.showToast('⚠️ تعذر تشغيل التلاوة. جرب قارئاً آخر.');
         }
     },
 
-    onMetadataLoaded() {
+    onMetadataLoaded(): void {
         this.calculateAyahTimings();
         this.updateTimeDisplay();
     },
 
-    calculateAyahTimings() {
+    calculateAyahTimings(): void {
         const duration = this.audio.duration;
         if (!duration || isNaN(duration)) return;
 
         const ayahElements = document.querySelectorAll('[data-ayah]');
         if (ayahElements.length === 0) return;
 
-        const lengths = [];
+        const lengths: number[] = [];
         let totalLength = 0;
 
         ayahElements.forEach(el => {
@@ -152,7 +157,7 @@ const PlayerModule = {
                 ayahNum: i + 1,
                 startTime: accumulated,
                 endTime: accumulated + share,
-                element: el
+                element: el as HTMLElement
             });
             accumulated += share;
         });
@@ -160,7 +165,7 @@ const PlayerModule = {
         this.lastActiveAyah = -1;
     },
 
-    onTimeUpdate() {
+    onTimeUpdate(): void {
         if (!this.audio.duration) return;
         const percent = (this.audio.currentTime / this.audio.duration) * 100;
         const fillEl = document.getElementById('playerProgressFill');
@@ -169,7 +174,7 @@ const PlayerModule = {
         this.updateTimeDisplay();
     },
 
-    startScrollTracking() {
+    startScrollTracking(): void {
         this.stopScrollTracking();
         const tick = () => {
             if (this.audio.paused || this.audio.ended) {
@@ -190,14 +195,14 @@ const PlayerModule = {
         this.scrollAnimId = requestAnimationFrame(tick);
     },
 
-    stopScrollTracking() {
+    stopScrollTracking(): void {
         if (this.scrollAnimId) {
             cancelAnimationFrame(this.scrollAnimId);
             this.scrollAnimId = null;
         }
     },
 
-    highlightActiveAyah(ayahNum) {
+    highlightActiveAyah(ayahNum: number): void {
         document.querySelectorAll('.active-ayah').forEach(el => el.classList.remove('active-ayah'));
         const el = document.getElementById(`ayah-${ayahNum}`);
         if (el) {
@@ -206,9 +211,10 @@ const PlayerModule = {
         }
     },
 
-    seek(event) {
+    seek(event: MouseEvent): void {
         if (!this.audio.duration) return;
         const container = document.getElementById('progressBarContainer');
+        if (!container) return;
         const rect = container.getBoundingClientRect();
         // Since RTL: right side is 0%
         const clickX = event.clientX - rect.left;
@@ -216,24 +222,26 @@ const PlayerModule = {
         this.audio.currentTime = Math.max(0, Math.min(this.audio.duration, ratio * this.audio.duration));
     },
 
-    skip(seconds) {
+    skip(seconds: number): void {
         if (!this.audio.duration) return;
         this.audio.currentTime = Math.max(0, Math.min(this.audio.duration, this.audio.currentTime + seconds));
     },
 
-    nextSurah() {
+    nextSurah(): void {
         if (this.currentSurah < 114) {
-            QuranModule.loadSurah(this.currentSurah + 1);
+            const quranMod = (window as any).QuranModule;
+            if (quranMod) quranMod.loadSurah(this.currentSurah + 1);
         }
     },
 
-    prevSurah() {
+    prevSurah(): void {
         if (this.currentSurah > 1) {
-            QuranModule.loadSurah(this.currentSurah - 1);
+            const quranMod = (window as any).QuranModule;
+            if (quranMod) quranMod.loadSurah(this.currentSurah - 1);
         }
     },
 
-    onTrackEnded() {
+    onTrackEnded(): void {
         if (this.currentSurah < 114) {
             this.nextSurah();
         } else {
@@ -242,7 +250,7 @@ const PlayerModule = {
         }
     },
 
-    setReciter(reciterId) {
+    setReciter(reciterId: string): void {
         this.currentReciter = reciterId;
         Storage.saveSettings({ reciter: reciterId });
         if (this.isPlaying) {
@@ -250,27 +258,27 @@ const PlayerModule = {
         }
     },
 
-    setVolume(val) {
-        const num = parseFloat(val);
+    setVolume(val: number | string): void {
+        const num = typeof val === 'string' ? parseFloat(val) : val;
         this.audio.volume = num;
         Storage.saveSettings({ volume: num });
     },
 
-    formatTime(sec) {
+    formatTime(sec: number): string {
         if (isNaN(sec)) return '00:00';
         const mins = Math.floor(sec / 60);
         const secs = Math.floor(sec % 60);
         return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     },
 
-    updateTimeDisplay() {
+    updateTimeDisplay(): void {
         const curEl = document.getElementById('playerTimeCurrent');
         const durEl = document.getElementById('playerTimeDuration');
         if (curEl) curEl.textContent = this.formatTime(this.audio.currentTime);
         if (durEl) durEl.textContent = this.formatTime(this.audio.duration || 0);
     },
 
-    updatePlayBtn(state) {
+    updatePlayBtn(state: boolean | 'loading'): void {
         const btn = document.getElementById('playerPlayPauseBtn');
         if (!btn) return;
         if (state === 'loading') {
@@ -285,17 +293,17 @@ const PlayerModule = {
         }
     },
 
-    updatePlayerUI() {
-        const reciterSelect = document.getElementById('playerReciterSelect');
+    updatePlayerUI(): void {
+        const reciterSelect = document.getElementById('playerReciterSelect') as HTMLSelectElement | null;
         if (reciterSelect) reciterSelect.value = this.currentReciter;
-        const volumeSlider = document.getElementById('playerVolumeSlider');
-        if (volumeSlider) volumeSlider.value = this.audio.volume;
+        const volumeSlider = document.getElementById('playerVolumeSlider') as HTMLInputElement | null;
+        if (volumeSlider) volumeSlider.value = String(this.audio.volume);
     },
 
     // ========================================================
     // MY RECITATION AUTO-SCROLL (قراءتي الخاصة)
     // ========================================================
-    toggleMyRecitation() {
+    toggleMyRecitation(): void {
         if (this.isMyRecitation) {
             this.stopMyRecitation();
         } else {
@@ -303,7 +311,7 @@ const PlayerModule = {
         }
     },
 
-    startMyRecitation() {
+    startMyRecitation(): void {
         if (this.isPlaying) {
             this.audio.pause();
         }
@@ -314,14 +322,15 @@ const PlayerModule = {
         if (bar) bar.classList.add('active');
         if (btn) btn.classList.add('active');
 
-        App.showToast('👤 تم تفعيل وضع القراءة الخاصة والتمرير التلقائي');
+        const app = (window as any).App;
+        if (app) app.showToast('👤 تم تفعيل وضع القراءة الخاصة والتمرير التلقائي');
 
         const speedPxPerSec = [0, 3, 6, 10, 16, 24, 34, 46, 60, 78, 100];
         let lastTime = performance.now();
         let accumulatedPixels = 0;
         const scrollContainer = document.getElementById('readingView');
 
-        const step = (now) => {
+        const step = (now: number) => {
             if (!this.isMyRecitation) return;
             const delta = (now - lastTime) / 1000;
             lastTime = now;
@@ -341,7 +350,7 @@ const PlayerModule = {
         this.myRecitationAnimId = requestAnimationFrame(step);
     },
 
-    stopMyRecitation() {
+    stopMyRecitation(): void {
         this.isMyRecitation = false;
         const bar = document.getElementById('myRecitationBar');
         const btn = document.getElementById('btnMyRecitation');
@@ -354,12 +363,12 @@ const PlayerModule = {
         }
     },
 
-    setMyRecitationSpeed(speed) {
-        this.myRecitationSpeed = parseInt(speed);
+    setMyRecitationSpeed(speed: number | string): void {
+        this.myRecitationSpeed = typeof speed === 'string' ? parseInt(speed, 10) : speed;
         Storage.saveSettings({ myRecitationSpeed: this.myRecitationSpeed });
         const label = document.getElementById('speedValueLabel');
-        if (label) label.textContent = this.myRecitationSpeed;
+        if (label) label.textContent = String(this.myRecitationSpeed);
     }
 };
 
-window.PlayerModule = PlayerModule;
+(window as any).PlayerModule = PlayerModule;

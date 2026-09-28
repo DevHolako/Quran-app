@@ -1,12 +1,14 @@
 // Slide-Over Tafsir Drawer Module
-const TafsirModule = {
+import { Storage } from './storage';
+
+export const TafsirModule = {
     currentSurah: 1,
     currentAyah: 1,
     isOpen: false,
 
-    async openTafsir(surahId, ayahNumber) {
-        this.currentSurah = parseInt(surahId);
-        this.currentAyah = parseInt(ayahNumber);
+    async openTafsir(surahId: number | string, ayahNumber: number | string): Promise<void> {
+        this.currentSurah = typeof surahId === 'string' ? parseInt(surahId, 10) : surahId;
+        this.currentAyah = typeof ayahNumber === 'string' ? parseInt(ayahNumber, 10) : ayahNumber;
         this.isOpen = true;
 
         const drawer = document.getElementById('tafsirDrawer');
@@ -15,17 +17,18 @@ const TafsirModule = {
         await this.loadTafsirContent();
     },
 
-    closeTafsir() {
+    closeTafsir(): void {
         this.isOpen = false;
         const drawer = document.getElementById('tafsirDrawer');
         if (drawer) drawer.classList.remove('open');
     },
 
-    async loadTafsirContent() {
+    async loadTafsirContent(): Promise<void> {
         const titleEl = document.getElementById('tafsirTitle');
         const ayahBox = document.getElementById('tafsirAyahBox');
         const contentBox = document.getElementById('tafsirContentBox');
-        const surahInfo = QuranModule.getSurahInfo(this.currentSurah);
+        const quranMod = (window as any).QuranModule;
+        const surahInfo = quranMod ? quranMod.getSurahInfo(this.currentSurah) : { name: `سورة ${this.currentSurah}` };
 
         if (titleEl) {
             titleEl.textContent = `تفسير سورة ${surahInfo.name} - الآية ${this.currentAyah}`;
@@ -33,8 +36,8 @@ const TafsirModule = {
 
         // Verse Text
         let verseText = '';
-        if (QuranModule.currentVerses && QuranModule.currentVerses[this.currentAyah - 1]) {
-            verseText = QuranModule.currentVerses[this.currentAyah - 1].text;
+        if (quranMod && quranMod.currentVerses && quranMod.currentVerses[this.currentAyah - 1]) {
+            verseText = quranMod.currentVerses[this.currentAyah - 1].text;
         }
 
         if (ayahBox) {
@@ -52,7 +55,8 @@ const TafsirModule = {
 
         try {
             // Check cache
-            let text = Storage.getCachedTafsir(this.currentSurah, this.currentAyah);
+            const cached = Storage.getCachedTafsir(this.currentSurah, this.currentAyah);
+            let text = cached ? cached.text : null;
 
             if (!text) {
                 const res = await fetch(`https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir/ar-tafsir-muyassar/${this.currentSurah}/${this.currentAyah}.json`);
@@ -78,8 +82,9 @@ const TafsirModule = {
         }
     },
 
-    nextAyah() {
-        const surahInfo = QuranModule.getSurahInfo(this.currentSurah);
+    nextAyah(): void {
+        const quranMod = (window as any).QuranModule;
+        const surahInfo = quranMod ? quranMod.getSurahInfo(this.currentSurah) : { ayahs: 286 };
         if (this.currentAyah < surahInfo.ayahs) {
             this.currentAyah++;
             this.loadTafsirContent();
@@ -90,30 +95,34 @@ const TafsirModule = {
         }
     },
 
-    prevAyah() {
+    prevAyah(): void {
         if (this.currentAyah > 1) {
             this.currentAyah--;
             this.loadTafsirContent();
         } else if (this.currentSurah > 1) {
             this.currentSurah--;
-            const prevSurahInfo = QuranModule.getSurahInfo(this.currentSurah);
+            const quranMod = (window as any).QuranModule;
+            const prevSurahInfo = quranMod ? quranMod.getSurahInfo(this.currentSurah) : { ayahs: 286 };
             this.currentAyah = prevSurahInfo.ayahs;
             this.loadTafsirContent();
         }
     },
 
-    copyTafsir() {
-        const surahInfo = QuranModule.getSurahInfo(this.currentSurah);
-        const verseText = QuranModule.currentVerses && QuranModule.currentVerses[this.currentAyah - 1] 
-            ? QuranModule.currentVerses[this.currentAyah - 1].text 
+    copyTafsir(): void {
+        const quranMod = (window as any).QuranModule;
+        const surahInfo = quranMod ? quranMod.getSurahInfo(this.currentSurah) : { name: `سورة ${this.currentSurah}` };
+        const verseText = quranMod && quranMod.currentVerses && quranMod.currentVerses[this.currentAyah - 1] 
+            ? quranMod.currentVerses[this.currentAyah - 1].text 
             : '';
-        const tafsirText = document.querySelector('.tafsir-text-content')?.textContent || '';
+        const tafsirEl = document.querySelector('.tafsir-text-content');
+        const tafsirText = tafsirEl ? (tafsirEl.textContent || '') : '';
 
         const fullCopy = `﴿ ${verseText} ﴾ [${surahInfo.name}: ${this.currentAyah}]\n\nالتفسير الميسر:\n${tafsirText}`;
         navigator.clipboard.writeText(fullCopy).then(() => {
-            App.showToast('📋 تم نسخ التفسير');
+            const app = (window as any).App;
+            if (app) app.showToast('📋 تم نسخ التفسير');
         });
     }
 };
 
-window.TafsirModule = TafsirModule;
+(window as any).TafsirModule = TafsirModule;

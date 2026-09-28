@@ -1,13 +1,14 @@
-const https = require('https');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { spawn } = require('child_process');
-const { app, shell } = require('electron');
+import * as https from 'https';
+import * as http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import { spawn } from 'child_process';
+import { app, shell } from 'electron';
+import { UpdateInfo, DownloadProgress } from '../types/updater';
 
 // Converts common Google Drive sharing links into direct download links
-function formatGoogleDriveUrl(url) {
+export function formatGoogleDriveUrl(url: string): string {
     if (!url) return '';
     const trimmed = url.trim();
 
@@ -32,7 +33,7 @@ function formatGoogleDriveUrl(url) {
 }
 
 // Fetch JSON data following HTTP/HTTPS redirects
-function fetchJsonWithRedirects(url, maxRedirects = 6) {
+export function fetchJsonWithRedirects(url: string, maxRedirects: number = 6): Promise<UpdateInfo> {
     return new Promise((resolve, reject) => {
         if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
 
@@ -47,7 +48,7 @@ function fetchJsonWithRedirects(url, maxRedirects = 6) {
             }
         }, (res) => {
             // Handle redirects
-            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+            if ([301, 302, 303, 307, 308].includes(res.statusCode || 0) && res.headers.location) {
                 let redirectUrl = res.headers.location;
                 if (!redirectUrl.startsWith('http')) {
                     redirectUrl = new URL(redirectUrl, formattedUrl).href;
@@ -55,7 +56,7 @@ function fetchJsonWithRedirects(url, maxRedirects = 6) {
                 return resolve(fetchJsonWithRedirects(redirectUrl, maxRedirects - 1));
             }
 
-            if (res.statusCode < 200 || res.statusCode >= 300) {
+            if ((res.statusCode || 0) < 200 || (res.statusCode || 0) >= 300) {
                 return reject(new Error(`HTTP status code ${res.statusCode}`));
             }
 
@@ -80,7 +81,7 @@ function fetchJsonWithRedirects(url, maxRedirects = 6) {
 }
 
 // Compare semantic version (e.g. "1.1.0" > "1.0.0")
-function isNewerVersion(remote, local) {
+export function isNewerVersion(remote: string, local: string): boolean {
     if (!remote || !local) return false;
     const cleanR = remote.replace(/^[vV]/, '').split('.').map(Number);
     const cleanL = local.replace(/^[vV]/, '').split('.').map(Number);
@@ -95,7 +96,12 @@ function isNewerVersion(remote, local) {
 }
 
 // Download file following redirects with cookie preservation and virus warning bypass
-function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') {
+export function downloadUpdateFile(
+    url: string,
+    onProgress?: (progress: DownloadProgress) => void,
+    maxRedirects: number = 10,
+    cookieJar: string = ''
+): Promise<string> {
     return new Promise((resolve, reject) => {
         if (maxRedirects <= 0) return reject(new Error('Too many redirects'));
 
@@ -103,7 +109,7 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
         const parsedUrl = new URL(formattedUrl);
         const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
-        const headers = {
+        const headers: Record<string, string> = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': '*/*'
         };
@@ -114,15 +120,16 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
         const req = protocol.get(formattedUrl, { headers }, (res) => {
             // Collect cookies
             let updatedCookieJar = cookieJar;
-            if (res.headers['set-cookie']) {
-                const newCookies = Array.isArray(res.headers['set-cookie']) 
-                    ? res.headers['set-cookie'].map(c => c.split(';')[0]).join('; ')
-                    : res.headers['set-cookie'].split(';')[0];
+            const rawCookies = res.headers['set-cookie'];
+            if (rawCookies) {
+                const newCookies = Array.isArray(rawCookies) 
+                    ? rawCookies.map((c: string) => c.split(';')[0]).join('; ')
+                    : String(rawCookies).split(';')[0];
                 updatedCookieJar = updatedCookieJar ? `${updatedCookieJar}; ${newCookies}` : newCookies;
             }
 
             // Handle HTTP redirects
-            if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+            if ([301, 302, 303, 307, 308].includes(res.statusCode || 0) && res.headers.location) {
                 let redirectUrl = res.headers.location;
                 if (!redirectUrl.startsWith('http')) {
                     redirectUrl = new URL(redirectUrl, formattedUrl).href;
@@ -130,7 +137,7 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
                 return resolve(downloadUpdateFile(redirectUrl, onProgress, maxRedirects - 1, updatedCookieJar));
             }
 
-            if (res.statusCode < 200 || res.statusCode >= 300) {
+            if ((res.statusCode || 0) < 200 || (res.statusCode || 0) >= 300) {
                 return reject(new Error(`Download failed with status ${res.statusCode}`));
             }
 
@@ -168,7 +175,7 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
                 return;
             }
 
-            const totalBytes = parseInt(res.headers['content-length'], 10) || 0;
+            const totalBytes = parseInt(res.headers['content-length'] as string, 10) || 0;
             let receivedBytes = 0;
 
             const tempDir = os.tmpdir();
@@ -197,7 +204,7 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
                             fs.unlink(destPath, () => {});
                             return reject(new Error('Downloaded file is not a valid Windows executable.'));
                         }
-                    } catch (e) {
+                    } catch (e: any) {
                         return reject(new Error(`Failed to verify executable: ${e.message}`));
                     }
                     resolve(destPath);
@@ -215,7 +222,7 @@ function downloadUpdateFile(url, onProgress, maxRedirects = 10, cookieJar = '') 
 }
 
 // Launch the downloaded executable installer or portable app
-function installAndRestart(installerPath) {
+export function installAndRestart(installerPath: string): void {
     try {
         const child = spawn(installerPath, [], {
             detached: true,
@@ -228,11 +235,3 @@ function installAndRestart(installerPath) {
         shell.openPath(installerPath);
     }
 }
-
-module.exports = {
-    fetchJsonWithRedirects,
-    isNewerVersion,
-    downloadUpdateFile,
-    installAndRestart,
-    formatGoogleDriveUrl
-};

@@ -3,26 +3,32 @@
   "productName": "القرآن الكريم",
   "version": "1.0.1",
   "description": "تطبيق القرآن الكريم والأذكار للويندوز بواجهة عصرية وتلاوة صوتية",
-  "main": "src/main/main.js",
+  "main": "dist-app/main/main.js",
   "author": "القرآن الكريم",
   "private": true,
   "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --win --publish never",
-    "dist:portable": "electron-builder --win portable --publish never",
-    "dist:nsis": "electron-builder --win nsis --publish never"
+    "build": "node scripts/build.js",
+    "typecheck": "tsc --noEmit",
+    "start": "node scripts/build.js && electron .",
+    "dist": "node scripts/build.js && electron-builder --win --publish never",
+    "dist:portable": "node scripts/build.js && electron-builder --win portable --publish never",
+    "dist:nsis": "node scripts/build.js && electron-builder --win nsis --publish never"
   },
   "devDependencies": {
     "@googleapis/drive": "^26.0.1",
+    "@types/node": "^26.6.3",
     "electron": "^44.4.5",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
   },
   "build": {
     "appId": "com.quran.desktop",
     "productName": "القرآن الكريم",
     "copyright": "وقف لله تعالى",
     "files": [
-      "src/**/*",
+      "dist-app/**/*",
+      "build/**/*",
       "package.json"
     ],
     "win": {

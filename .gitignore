@@ -3,6 +3,7 @@ node_modules/
 
 # Electron-builder distribution outputs
 dist/
+dist-app/
 *.exe
 *.blockmap
 
