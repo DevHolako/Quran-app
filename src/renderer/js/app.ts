@@ -210,7 +210,7 @@ export const App = {
     createFullBackupData(): FullBackupData {
         return {
             app: 'QuranAppDesktop',
-            version: '1.0.1',
+            version: '1.0.2',
             timestamp: new Date().toISOString(),
             settings: Storage.getSettings(),
             bookmarks: Storage.getBookmarks(),

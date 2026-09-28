@@ -209,32 +209,34 @@ async function main() {
         console.log(`[version.json] Updated local copy at ${path.relative(rootDir, vFile)}`);
     }
 
-    // Upload version.json to Google Drive
-    const targetVersionId = process.env.VERSION_FILE_ID || '1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij';
-    let versionUpload = null;
+    // Upload/sync version.json directly inside FOLDER_ID (so it appears directly in Quran_App folder)
+    console.log(`\n[version.json] Uploading/updating version.json in target folder ID: ${FOLDER_ID}...`);
+    const versionUpload = await uploadOrUpdateFile(
+        driveClient,
+        FOLDER_ID,
+        versionJsonPath,
+        'version.json',
+        'application/json'
+    );
 
-    try {
-        console.log(`\n[version.json] Attempting direct update of target file ID: ${targetVersionId}...`);
-        const updateRes = await driveClient.files.update({
-            fileId: targetVersionId,
-            media: {
-                mimeType: 'application/json',
-                body: fs.createReadStream(versionJsonPath)
-            },
-            fields: 'id, name, webViewLink, parents',
-            supportsAllDrives: true
-        });
-        versionUpload = { fileId: updateRes.data.id, webViewLink: updateRes.data.webViewLink };
-        console.log(`[version.json] Successfully updated known version.json file directly!`);
-    } catch (err) {
-        console.log(`[version.json] Direct update fallback (${err.message}). Searching folder ${FOLDER_ID}...`);
-        versionUpload = await uploadOrUpdateFile(
-            driveClient,
-            FOLDER_ID,
-            versionJsonPath,
-            'version.json',
-            'application/json'
-        );
+    // Also update known target version ID if configured and different (ensures backward compatibility)
+    const targetVersionId = process.env.VERSION_FILE_ID || '1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij';
+    if (targetVersionId && targetVersionId !== versionUpload.fileId) {
+        try {
+            console.log(`\n[version.json] Updating secondary target version file (${targetVersionId})...`);
+            await driveClient.files.update({
+                fileId: targetVersionId,
+                media: {
+                    mimeType: 'application/json',
+                    body: fs.createReadStream(versionJsonPath)
+                },
+                fields: 'id, name, webViewLink',
+                supportsAllDrives: true
+            });
+            console.log(`[version.json] Successfully updated secondary target version file directly!`);
+        } catch (err) {
+            console.log(`[version.json] Secondary update note: ${err.message}`);
+        }
     }
 
     console.log('\n====================================================');
