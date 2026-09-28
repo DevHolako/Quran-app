@@ -27,6 +27,13 @@ const App = {
 
         this.attachGlobalEvents();
         this.setupIPCListeners();
+        this.initLucide();
+    },
+
+    initLucide() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
     },
 
     setTheme(themeName) {
@@ -36,9 +43,10 @@ const App = {
 
         const themeBtn = document.getElementById('btnThemeToggle');
         if (themeBtn) {
-            if (themeName === 'dark') themeBtn.innerHTML = '🌙';
-            else if (themeName === 'sepia') themeBtn.innerHTML = '📜';
-            else themeBtn.innerHTML = '🌿';
+            if (themeName === 'dark') themeBtn.innerHTML = '<i data-lucide="moon"></i>';
+            else if (themeName === 'sepia') themeBtn.innerHTML = '<i data-lucide="file-text"></i>';
+            else themeBtn.innerHTML = '<i data-lucide="palette"></i>';
+            this.initLucide();
         }
     },
 
@@ -180,6 +188,69 @@ const App = {
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.classList.toggle('collapsed');
+    },
+
+    // ========================================================
+    // BACKUP & SYNC (Google Drive & Local File)
+    // ========================================================
+    createFullBackupData() {
+        return {
+            app: 'QuranAppDesktop',
+            version: '1.0.1',
+            timestamp: new Date().toISOString(),
+            settings: Storage.getSettings(),
+            bookmarks: Storage.getBookmarks(),
+            lastRead: Storage.getLastRead(),
+            adhkar: Storage.get('adhkar_items', null),
+            tasbihTarget: Storage.get('tasbih_target', 33)
+        };
+    },
+
+    exportBackupFile() {
+        const data = this.createFullBackupData();
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const dateStr = new Date().toISOString().slice(0, 10);
+        a.download = `quran_app_backup_${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        this.showToast('✅ تم تصدير النسخة الاحتياطية بنجاح');
+    },
+
+    importBackupFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.settings) Storage.saveSettings(data.settings);
+                if (data.bookmarks) Storage.set('quran_bookmarks', data.bookmarks);
+                if (data.lastRead) Storage.set('quran_last_read', data.lastRead);
+                if (data.adhkar) Storage.set('adhkar_items', data.adhkar);
+                if (data.tasbihTarget) Storage.set('tasbih_target', data.tasbihTarget);
+
+                this.showToast('✅ تم استعادة بياناتك وأذكارك وإعداداتك بنجاح!');
+                setTimeout(() => location.reload(), 1200);
+            } catch (err) {
+                this.showToast('⚠️ ملف النسخة الاحتياطية غير صالح');
+            }
+        };
+        reader.readAsText(file);
+    },
+
+    backupToGoogleDrive() {
+        this.exportBackupFile();
+        if (window.desktopAPI && window.desktopAPI.openExternalUrl) {
+            window.desktopAPI.openExternalUrl('https://drive.google.com/drive/my-drive');
+        }
+        this.showToast('☁️ تم حفظ ملف النسخ الاحتياطي، وتم فتح Google Drive لحفظه!');
     },
 
     // ========================================================

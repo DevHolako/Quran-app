@@ -274,11 +274,14 @@ const PlayerModule = {
         const btn = document.getElementById('playerPlayPauseBtn');
         if (!btn) return;
         if (state === 'loading') {
-            btn.innerHTML = '⏳';
+            btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i>';
         } else if (state === true) {
-            btn.innerHTML = '⏸️';
+            btn.innerHTML = '<i data-lucide="pause"></i>';
         } else {
-            btn.innerHTML = '▶️';
+            btn.innerHTML = '<i data-lucide="play"></i>';
+        }
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
         }
     },
 

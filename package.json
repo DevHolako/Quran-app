@@ -1,7 +1,7 @@
 {
   "name": "quran-desktop-app",
   "productName": "القرآن الكريم",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "تطبيق القرآن الكريم والأذكار للويندوز بواجهة عصرية وتلاوة صوتية",
   "main": "src/main/main.js",
   "author": "القرآن الكريم",
@@ -43,5 +43,8 @@
     "portable": {
       "artifactName": "Quran_App_${version}.${ext}"
     }
+  },
+  "dependencies": {
+    "lucide": "^1.48.0"
   }
 }

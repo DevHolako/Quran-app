@@ -1,6 +1,51 @@
 /* Component Styles: Sidebar, Audio Dock, Tafsir Drawer, Adhkar & Tasbih */
 
 /* ========================================================
+   LUCIDE ICONS SUPPORT
+   ======================================================== */
+[data-lucide], svg.lucide {
+    width: 17px;
+    height: 17px;
+    stroke-width: 2.2px;
+    vertical-align: middle;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.nav-btn [data-lucide], .nav-btn svg.lucide {
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
+}
+.sidebar-tab [data-lucide], .sidebar-tab svg.lucide {
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+}
+.player-btn [data-lucide], .player-btn svg.lucide {
+    width: 18px;
+    height: 18px;
+}
+.play-pause-btn [data-lucide], .play-pause-btn svg.lucide {
+    width: 22px;
+    height: 22px;
+}
+.search-box [data-lucide], .search-box svg.lucide {
+    position: absolute;
+    right: 12px;
+    color: var(--text-muted);
+    width: 15px;
+    height: 15px;
+    pointer-events: none;
+}
+.spin {
+    animation: spin-anim 1s linear infinite;
+}
+@keyframes spin-anim {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ========================================================
    SIDEBAR COMPONENT
    ======================================================== */
 .sidebar {

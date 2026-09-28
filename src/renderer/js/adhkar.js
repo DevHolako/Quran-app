@@ -262,7 +262,12 @@ const AdhkarModule = {
 
         if (toggleBtn) {
             toggleBtn.classList.toggle('active', this.isDhikrActive);
-            toggleBtn.innerHTML = this.isDhikrActive ? '🔔 تذكير الذكر مُفعّل' : '🔕 تفعيل تذكير الذكر';
+            toggleBtn.innerHTML = this.isDhikrActive 
+                ? '<i data-lucide="bell-ring"></i> تذكير الذكر مُفعّل' 
+                : '<i data-lucide="bell-off"></i> تفعيل تذكير الذكر';
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
         }
 
         if (intervalSelect) {

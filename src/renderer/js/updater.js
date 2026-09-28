@@ -2,7 +2,7 @@
 const UpdaterModule = {
     // Default update URL pointing to user's Google Drive version.json
     defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
-    currentVersion: '1.0.0',
+    currentVersion: '1.0.1',
     latestInfo: null,
     isDownloading: false,
 
@@ -103,7 +103,10 @@ const UpdaterModule = {
         const banner = document.getElementById('updateTopBanner');
         const textEl = document.getElementById('updateBannerText');
         if (textEl) {
-            textEl.textContent = `🎉 يتوفر تحديث جديد للمصحف الشريف (الإصدار v${info.latestVersion}) - اضغط للتحديث!`;
+            textEl.innerHTML = `<i data-lucide="sparkles"></i> يتوفر تحديث جديد للمصحف الشريف (الإصدار v${info.latestVersion}) - اضغط للتحديث!`;
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
         }
         if (banner) {
             banner.classList.add('visible');

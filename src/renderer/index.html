@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mus-haf.css">
     <link rel="stylesheet" href="css/components.css">
+    <!-- Lucide Icons -->
+    <script src="js/libs/lucide.min.js"></script>
 </head>
 <body data-theme="emerald">
     <div id="app">
@@ -15,7 +17,7 @@
         <header class="top-nav">
             <div class="brand-section">
                 <button class="nav-btn" onclick="App.toggleSidebar()" title="فتح / إغلاق القائمة الجانبية">
-                    ☰
+                    <i data-lucide="menu"></i>
                 </button>
                 <img src="assets/icon.png" class="brand-icon" alt="شعار المصحف">
                 <div class="brand-title">القرآن الكريم</div>
@@ -25,32 +27,38 @@
 
             <div class="nav-actions">
                 <button class="nav-btn" onclick="App.openSurahKahf()" title="سورة الكهف">
-                    📖 سورة الكهف
+                    <i data-lucide="book-open"></i> سورة الكهف
                 </button>
                 <button class="nav-btn" onclick="AdhkarModule.openAdhkarReader('sabah')" title="أذكار الصباح">
-                    🌅 أذكار الصباح
+                    <i data-lucide="sun"></i> أذكار الصباح
                 </button>
                 <button class="nav-btn" onclick="AdhkarModule.openAdhkarReader('masa')" title="أذكار المساء">
-                    🌙 أذكار المساء
+                    <i data-lucide="moon"></i> أذكار المساء
                 </button>
                 <button class="nav-btn" onclick="AdhkarModule.openTasbihModal()" title="المسبحة الإلكترونية">
-                    📿 مسبحة
+                    <i data-lucide="circle-dot"></i> مسبحة
                 </button>
                 <button id="btnMyRecitation" class="nav-btn" onclick="PlayerModule.toggleMyRecitation()" title="وضع القراءة الخاصة مع التمرير التلقائي">
-                    👤 قراءتي الخاصة
+                    <i data-lucide="user"></i> قراءتي الخاصة
                 </button>
                 <button id="btnThemeToggle" class="nav-btn" onclick="App.cycleTheme()" title="تغيير المظهر">
-                    🌿
+                    <i data-lucide="palette"></i>
                 </button>
             </div>
         </header>
 
         <!-- ===== UPDATE NOTIFICATION TOP BANNER ===== -->
         <div id="updateTopBanner" class="update-top-banner">
-            <span id="updateBannerText">🎉 يتوفر تحديث جديد للمصحف الشريف!</span>
+            <span id="updateBannerText" style="display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="sparkles"></i> يتوفر تحديث جديد للمصحف الشريف!
+            </span>
             <div class="banner-actions">
-                <button class="banner-btn-update" onclick="UpdaterModule.openUpdateModal()">تحديث وتثبيت الآن ⬇️</button>
-                <button class="banner-btn-close" onclick="UpdaterModule.dismissTopBanner()" title="إغلاق">✕</button>
+                <button class="banner-btn-update" onclick="UpdaterModule.openUpdateModal()">
+                    <i data-lucide="download"></i> تحديث وتثبيت الآن
+                </button>
+                <button class="banner-btn-close" onclick="UpdaterModule.dismissTopBanner()" title="إغلاق">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
         </div>
 
@@ -60,15 +68,21 @@
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-header">
                     <div class="search-box">
-                        <span class="search-icon">🔍</span>
+                        <i data-lucide="search" class="search-icon"></i>
                         <input type="text" class="search-input" id="sidebarSearchInput" placeholder="ابحث عن سورة بالاسم أو الرقم..." oninput="App.filterSurahs(this.value)">
                     </div>
                 </div>
 
                 <div class="sidebar-tabs">
-                    <button class="sidebar-tab active" data-tab="surahs" onclick="App.switchSidebarTab('surahs')">فهرس السور</button>
-                    <button class="sidebar-tab" data-tab="bookmarks" onclick="App.switchSidebarTab('bookmarks')">العلامات</button>
-                    <button class="sidebar-tab" data-tab="settings" onclick="App.switchSidebarTab('settings')">الإعدادات</button>
+                    <button class="sidebar-tab active" data-tab="surahs" onclick="App.switchSidebarTab('surahs')">
+                        <i data-lucide="book"></i> فهرس السور
+                    </button>
+                    <button class="sidebar-tab" data-tab="bookmarks" onclick="App.switchSidebarTab('bookmarks')">
+                        <i data-lucide="bookmark"></i> العلامات
+                    </button>
+                    <button class="sidebar-tab" data-tab="settings" onclick="App.switchSidebarTab('settings')">
+                        <i data-lucide="settings"></i> الإعدادات
+                    </button>
                 </div>
 
                 <div class="sidebar-content">
@@ -84,10 +98,15 @@
 
                     <!-- Settings Tab -->
                     <div id="sidebarSettingsView" style="display: none; padding: 10px;">
-                        <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px; color: var(--primary);">⚙️ إعدادات التذكير والأذكار</div>
+                        <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="bell"></i> إعدادات التذكير والتنبيهات
+                        </div>
                         
+                        <!-- Dhikr Reminder Card -->
                         <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color);">
-                            <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px;">🔔 تذكير الذكر التلقائي</div>
+                            <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="clock"></i> تذكير الذكر التلقائي
+                            </div>
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                                 <label style="font-size: 12px;">تكرار كل:</label>
                                 <select id="dhikrIntervalSelect" onchange="AdhkarModule.setIntervalMin(this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-family: inherit;">
@@ -100,36 +119,55 @@
                                 </select>
                             </div>
                             <div style="display: flex; gap: 8px;">
-                                <button id="btnToggleDhikr" class="nav-btn" style="flex: 1; justify-content: center;" onclick="AdhkarModule.toggleDhikrReminder()">
-                                    🔔 تفعيل التذكير
+                                <button id="btnToggleDhikr" class="nav-btn" style="flex: 1; justify-content: center; gap: 6px;" onclick="AdhkarModule.toggleDhikrReminder()">
+                                    <i data-lucide="bell-ring"></i> تفعيل التذكير
                                 </button>
                                 <button class="nav-btn" onclick="AdhkarModule.previewDhikr()" title="معاينة إشعار الذكر">
-                                    👁️
+                                    <i data-lucide="eye"></i>
                                 </button>
                             </div>
                         </div>
 
+                        <!-- Update Status Card (Clean, NO ugly Drive links) -->
                         <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--border-color);">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="font-weight: 700; font-size: 13px;">🔄 التحديث التلقائي</div>
-                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.0</span>
+                                <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="refresh-cw"></i> التحديث التلقائي
+                                </div>
+                                <span id="appVersionLabel" style="font-size: 11px; font-weight: 800; background: var(--hover-bg); color: var(--primary); padding: 2px 8px; border-radius: 12px;">v1.0.1</span>
                             </div>
-                            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-                                رابط ملف التحديثات (Google Drive أو رابط مباشر):
+                            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+                                متصل بنظام التحديثات السحابي التلقائي
                             </div>
-                            <input type="text" id="updateUrlInput" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-family: inherit; font-size: 12px; margin-bottom: 8px;" placeholder="رابط Google Drive..." onchange="UpdaterModule.setUpdateUrl(this.value)">
-                            <button class="nav-btn" style="width: 100%; justify-content: center;" onclick="UpdaterModule.checkForUpdates(true)">
-                                🔍 فحص وجود تحديثات الآن
+                            <button class="nav-btn" style="width: 100%; justify-content: center; gap: 6px;" onclick="UpdaterModule.checkForUpdates(true)">
+                                <i data-lucide="search"></i> فحص وجود تحديثات الآن
                             </button>
+                            <!-- Hidden input keeping functionality intact without displaying raw Drive URL -->
+                            <input type="hidden" id="updateUrlInput">
                         </div>
 
+                        <!-- Backup & Sync Card (Google Drive & Local File) -->
                         <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: 12px; border: 1px solid var(--border-color);">
-                            <div style="font-weight: 700; font-size: 13px; margin-bottom: 10px;">💾 النسخ الاحتياطي للأذكار</div>
+                            <div style="font-weight: 700; font-size: 13px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="cloud"></i> المزامنة والنسخ الاحتياطي
+                            </div>
                             <div style="display: flex; flex-direction: column; gap: 8px;">
-                                <button class="nav-btn" onclick="AdhkarModule.exportAdhkar()">⬇️ تصدير الأذكار (.json)</button>
-                                <button class="nav-btn" onclick="document.getElementById('fileImportAdhkar').click()">⬆️ استيراد الأذكار</button>
-                                <input type="file" id="fileImportAdhkar" style="display: none;" accept=".json,.txt" onchange="AdhkarModule.importAdhkar(event)">
-                                <button class="nav-btn" style="color: #e74c3c;" onclick="AdhkarModule.resetToDefaults()">🔄 استعادة الافتراضي</button>
+                                <button class="nav-btn btn-special" style="justify-content: center; gap: 6px;" onclick="App.backupToGoogleDrive()" title="حفظ نسخة احتياطية ومزامنتها على Google Drive">
+                                    <i data-lucide="cloud-upload"></i> نسخ احتياطي إلى Google Drive
+                                </button>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="nav-btn" style="flex: 1; justify-content: center; gap: 4px; font-size: 12px;" onclick="App.exportBackupFile()">
+                                        <i data-lucide="download"></i> تصدير محلي
+                                    </button>
+                                    <button class="nav-btn" style="flex: 1; justify-content: center; gap: 4px; font-size: 12px;" onclick="document.getElementById('fileImportBackup').click()">
+                                        <i data-lucide="upload"></i> استيراد نسخة
+                                    </button>
+                                </div>
+                                <input type="file" id="fileImportBackup" style="display: none;" accept=".json" onchange="App.importBackupFile(event)">
+                                <button class="nav-btn" style="color: #e74c3c; justify-content: center; gap: 6px; font-size: 12px;" onclick="AdhkarModule.resetToDefaults()">
+                                    <i data-lucide="rotate-ccw"></i> استعادة الأذكار الافتراضية
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -150,7 +188,7 @@
         <footer class="audio-dock">
             <!-- Left: Track & Reciter Info -->
             <div class="audio-track-info">
-                <div class="reciter-avatar">🕌</div>
+                <div class="reciter-avatar"><i data-lucide="mic"></i></div>
                 <div class="track-text">
                     <div class="track-surah" id="playerTrackSurah">سورة الفاتحة</div>
                     <select class="track-reciter-select" id="playerReciterSelect" onchange="PlayerModule.setReciter(this.value)">
@@ -164,11 +202,11 @@
             <!-- Center: Player Controls & Timeline -->
             <div class="audio-center-controls">
                 <div class="player-buttons-row">
-                    <button class="player-btn" onclick="PlayerModule.prevSurah()" title="السورة السابقة">⏮️</button>
-                    <button class="player-btn" onclick="PlayerModule.skip(-10)" title="تأخير 10 ثواني">⏪</button>
-                    <button class="player-btn play-pause-btn" id="playerPlayPauseBtn" onclick="PlayerModule.togglePlay()" title="تشغيل / إيقاف">▶️</button>
-                    <button class="player-btn" onclick="PlayerModule.skip(10)" title="تقديم 10 ثواني">⏩</button>
-                    <button class="player-btn" onclick="PlayerModule.nextSurah()" title="السورة التالية">⏭️</button>
+                    <button class="player-btn" onclick="PlayerModule.prevSurah()" title="السورة السابقة"><i data-lucide="skip-back"></i></button>
+                    <button class="player-btn" onclick="PlayerModule.skip(-10)" title="تأخير 10 ثواني"><i data-lucide="rotate-ccw"></i></button>
+                    <button class="player-btn play-pause-btn" id="playerPlayPauseBtn" onclick="PlayerModule.togglePlay()" title="تشغيل / إيقاف"><i data-lucide="play"></i></button>
+                    <button class="player-btn" onclick="PlayerModule.skip(10)" title="تقديم 10 ثواني"><i data-lucide="rotate-cw"></i></button>
+                    <button class="player-btn" onclick="PlayerModule.nextSurah()" title="السورة التالية"><i data-lucide="skip-forward"></i></button>
                 </div>
 
                 <div class="timeline-scrubber-row">
@@ -184,13 +222,13 @@
             <div class="audio-side-features">
                 <!-- My Recitation Speed Slider -->
                 <div class="my-recitation-bar" id="myRecitationBar">
-                    <span style="font-size: 13px;">⚡ سرعة القراءة:</span>
+                    <span style="font-size: 13px; display: flex; align-items: center; gap: 4px;"><i data-lucide="gauge"></i> سرعة القراءة:</span>
                     <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="3" oninput="PlayerModule.setMyRecitationSpeed(this.value)">
                     <span id="speedValueLabel" style="font-weight: 800; font-size: 13px; color: var(--gold); min-width: 18px;">3</span>
                 </div>
 
                 <div class="volume-control">
-                    <span style="font-size: 14px;">🔊</span>
+                    <span style="display: flex; align-items: center;"><i data-lucide="volume-2"></i></span>
                     <input type="range" class="volume-slider" id="playerVolumeSlider" min="0" max="1" step="0.05" value="1" oninput="PlayerModule.setVolume(this.value)">
                 </div>
             </div>
@@ -200,16 +238,16 @@
         <div class="tafsir-drawer" id="tafsirDrawer">
             <div class="tafsir-drawer-header">
                 <div class="tafsir-drawer-title" id="tafsirTitle">تفسير الآية</div>
-                <button class="tafsir-drawer-close" onclick="TafsirModule.closeTafsir()" title="إغلاق">✕</button>
+                <button class="tafsir-drawer-close" onclick="TafsirModule.closeTafsir()" title="إغلاق"><i data-lucide="x"></i></button>
             </div>
             <div class="tafsir-drawer-body">
                 <div class="tafsir-ayah-box" id="tafsirAyahBox"></div>
                 <div id="tafsirContentBox"></div>
             </div>
             <div class="tafsir-footer-actions">
-                <button class="nav-btn" onclick="TafsirModule.prevAyah()">⬅️ الآية السابقة</button>
-                <button class="nav-btn" onclick="TafsirModule.copyTafsir()">📋 نسخ التفسير</button>
-                <button class="nav-btn" onclick="TafsirModule.nextAyah()">الآية التالية ➡️</button>
+                <button class="nav-btn" onclick="TafsirModule.prevAyah()"><i data-lucide="chevron-right"></i> الآية السابقة</button>
+                <button class="nav-btn" onclick="TafsirModule.copyTafsir()"><i data-lucide="copy"></i> نسخ التفسير</button>
+                <button class="nav-btn" onclick="TafsirModule.nextAyah()">الآية التالية <i data-lucide="chevron-left"></i></button>
             </div>
         </div>
 
@@ -217,8 +255,8 @@
         <div class="modal-overlay" id="adhkarModal">
             <div class="modal-card">
                 <div class="modal-header">
-                    <div class="modal-title" id="adhkarModalTitle">🌅 الأذكار</div>
-                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeAdhkarReader()">✕</button>
+                    <div class="modal-title" id="adhkarModalTitle">الأذكار</div>
+                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeAdhkarReader()"><i data-lucide="x"></i></button>
                 </div>
                 <div class="modal-body" id="adhkarModalBody"></div>
             </div>
@@ -228,8 +266,10 @@
         <div class="modal-overlay" id="tasbihModal">
             <div class="modal-card" style="max-width: 480px;">
                 <div class="modal-header">
-                    <div class="modal-title">📿 المسبحة الإلكترونية</div>
-                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeTasbihModal()">✕</button>
+                    <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="circle-dot"></i> المسبحة الإلكترونية
+                    </div>
+                    <button class="tafsir-drawer-close" onclick="AdhkarModule.closeTasbihModal()"><i data-lucide="x"></i></button>
                 </div>
                 <div class="modal-body">
                     <div class="tasbih-wrapper">
@@ -254,7 +294,9 @@
                             <button class="nav-btn" onclick="AdhkarModule.setTasbihTarget(33)">33</button>
                             <button class="nav-btn" onclick="AdhkarModule.setTasbihTarget(100)">100</button>
                             <button class="nav-btn" onclick="AdhkarModule.setTasbihTarget(0)">حر</button>
-                            <button class="nav-btn" style="color: #e74c3c;" onclick="AdhkarModule.resetTasbih()">🔄 تصفير</button>
+                            <button class="nav-btn" style="color: #e74c3c; gap: 4px;" onclick="AdhkarModule.resetTasbih()">
+                                <i data-lucide="rotate-ccw"></i> تصفير
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -265,12 +307,14 @@
         <div class="modal-overlay" id="updateModal">
             <div class="modal-card" style="max-width: 520px;">
                 <div class="modal-header">
-                    <div class="modal-title">🎉 يتوفر تحديث جديد!</div>
-                    <button class="tafsir-drawer-close" onclick="UpdaterModule.closeUpdateModal()">✕</button>
+                    <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="sparkles"></i> يتوفر تحديث جديد!
+                    </div>
+                    <button class="tafsir-drawer-close" onclick="UpdaterModule.closeUpdateModal()"><i data-lucide="x"></i></button>
                 </div>
                 <div class="modal-body" style="padding: 24px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.1.0</span>
+                        <span id="updateNewVersionLabel" style="font-size: 17px; font-weight: 800; color: var(--primary);">الإصدار الجديد: v1.0.1</span>
                         <span id="updateCurrentVersionLabel" style="font-size: 12px; color: var(--text-muted);">إصدارك: v1.0.0</span>
                     </div>
 
@@ -291,11 +335,11 @@
 
                     <!-- Actions Section -->
                     <div id="updateActionsSection" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="nav-btn btn-special" style="flex: 1; justify-content: center; padding: 10px;" onclick="UpdaterModule.startDownload()">
-                            ⬇️ تحديث وتثبيت تلقائي الآن
+                        <button class="nav-btn btn-special" style="flex: 1; justify-content: center; padding: 10px; gap: 6px;" onclick="UpdaterModule.startDownload()">
+                            <i data-lucide="download"></i> تحديث وتثبيت تلقائي الآن
                         </button>
-                        <button class="nav-btn" onclick="UpdaterModule.openDownloadInBrowser()" title="فتح في المتصفح">
-                            🌐 عبر المتصفح
+                        <button class="nav-btn" style="gap: 6px;" onclick="UpdaterModule.openDownloadInBrowser()" title="فتح في المتصفح">
+                            <i data-lucide="globe"></i> عبر المتصفح
                         </button>
                         <button class="nav-btn" onclick="UpdaterModule.closeUpdateModal()">
                             لاحقاً
