@@ -46,6 +46,7 @@ jobs:
     name: Upload to Google Drive & GitHub Release
     needs: build-windows
     runs-on: ubuntu-latest
+    environment: main
 
     steps:
       - name: Checkout Code
