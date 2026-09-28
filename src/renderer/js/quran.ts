@@ -101,11 +101,29 @@ export const QuranModule = {
             </div>
         `;
 
-        // Basmala (except Surah 1 Al-Fatiha and Surah 9 At-Tawbah)
+        // Isti'adha Banner (always recited at the beginning of audio)
+        const istiadhaHtml = `
+            <div class="istiadha-banner" id="istiadhaBanner" onclick="PlayerModule.seekToIntro('istiadha')" title="الاستعاذة بالله (اضغط للتشغيل)">
+                أَعُوذُ بِٱللَّهِ مِنَ ٱلشَّيْطَٰنِ ٱلرَّجِيمِ
+            </div>
+        `;
+
+        // Basmala (except Surah 1 Al-Fatiha where it is Ayah 1, and Surah 9 At-Tawbah where it is not recited)
         let basmalaHtml = '';
         if (this.currentSurahId !== 1 && this.currentSurahId !== 9) {
-            basmalaHtml = `<div class="basmala-banner">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>`;
+            basmalaHtml = `
+                <div class="basmala-banner" id="basmalaBanner" onclick="PlayerModule.seekToIntro('basmala')" title="البسملة الشريفة (اضغط للتشغيل)">
+                    بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                </div>
+            `;
         }
+
+        const introBoxHtml = `
+            <div class="intro-revelation-box">
+                ${istiadhaHtml}
+                ${basmalaHtml}
+            </div>
+        `;
 
         // Reader controls
         const controlsHtml = `
@@ -134,16 +152,21 @@ export const QuranModule = {
                 bodyHtml += `
                     <div class="ayah-card" id="ayah-${ayahNum}" data-surah="${this.currentSurahId}" data-ayah="${ayahNum}" data-index="${index}">
                         <div class="ayah-card-header">
-                            <span class="ayah-number-badge">الآية ${ayahNum}</span>
+                            <span class="ayah-number-badge" onclick="PlayerModule.seekToAyah(${ayahNum})" style="cursor: pointer;" title="استماع إلى الآية ${ayahNum}">
+                                <i data-lucide="play" style="width: 12px; height: 12px;"></i> الآية ${ayahNum}
+                            </span>
                             <div class="ayah-actions-toolbar">
+                                <button class="ayah-action-btn" onclick="PlayerModule.seekToAyah(${ayahNum})" title="استماع للآية">
+                                    <i data-lucide="volume-2"></i> استماع
+                                </button>
                                 <button class="ayah-action-btn" onclick="TafsirModule.openTafsir(${this.currentSurahId}, ${ayahNum})" title="عرض التفسير">
-                                    📖 تفسير
+                                    <i data-lucide="book-open"></i> تفسير
                                 </button>
                                 <button class="ayah-action-btn ${isBookmarked ? 'bookmarked' : ''}" id="bm-btn-${ayahNum}" onclick="QuranModule.toggleBookmark(${this.currentSurahId}, ${ayahNum})" title="حفظ علامة">
-                                    🔖 ${isBookmarked ? 'محفوظة' : 'علامة'}
+                                    <i data-lucide="bookmark"></i> ${isBookmarked ? 'محفوظة' : 'علامة'}
                                 </button>
                                 <button class="ayah-action-btn" onclick="QuranModule.copyVerseText(${this.currentSurahId}, ${ayahNum})" title="نسخ الآية">
-                                    📋 نسخ
+                                    <i data-lucide="copy"></i> نسخ
                                 </button>
                             </div>
                         </div>
@@ -158,9 +181,9 @@ export const QuranModule = {
             this.currentVerses.forEach((verse, index) => {
                 const ayahNum = index + 1;
                 bodyHtml += `
-                    <span class="mushaf-ayah-span" id="ayah-${ayahNum}" data-surah="${this.currentSurahId}" data-ayah="${ayahNum}" data-index="${index}" onclick="TafsirModule.openTafsir(${this.currentSurahId}, ${ayahNum})">
+                    <span class="mushaf-ayah-span" id="ayah-${ayahNum}" data-surah="${this.currentSurahId}" data-ayah="${ayahNum}" data-index="${index}" onclick="TafsirModule.openTafsir(${this.currentSurahId}, ${ayahNum})" title="انقر لعرض التفسير | الآية ${ayahNum}">
                         ${verse.text}
-                        <span class="mushaf-ayah-end">${ayahNum}</span>
+                        <span class="mushaf-ayah-end" onclick="event.stopPropagation(); PlayerModule.seekToAyah(${ayahNum})" title="استماع للآية ${ayahNum}">${ayahNum}</span>
                     </span>
                 `;
             });
@@ -171,10 +194,13 @@ export const QuranModule = {
             <div class="quran-container">
                 ${headerHtml}
                 ${controlsHtml}
-                ${basmalaHtml}
+                ${introBoxHtml}
                 ${bodyHtml}
             </div>
         `;
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
     },
 
     setMode(mode: 'card' | 'mushaf'): void {

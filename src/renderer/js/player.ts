@@ -16,10 +16,12 @@ export const PlayerModule = {
     myRecitationAnimId: null as number | null,
     myRecitationSpeed: 3,
 
-    // Reciters and audio sources
+    // Reciters and audio sources with calibrated intro timing offsets (Isti'adha & Basmala)
     reciters: {
         'alafasy': {
             label: 'مشاري راشد العفاسي',
+            introIstiadha: 3.5,
+            introBasmala: 4.2,
             sources: [
                 { baseUrl: 'https://server8.mp3quran.net/afs', ext: '.mp3' },
                 { baseUrl: 'https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy', ext: '.mp3' },
@@ -28,6 +30,8 @@ export const PlayerModule = {
         },
         'ghamadi': {
             label: 'سعد الغامدي',
+            introIstiadha: 3.2,
+            introBasmala: 3.9,
             sources: [
                 { baseUrl: 'https://server7.mp3quran.net/s_gmd', ext: '.mp3' },
                 { baseUrl: 'https://cdn.mualim.app/saad-al-ghamdi-murattal', ext: '.opus' }
@@ -35,12 +39,14 @@ export const PlayerModule = {
         },
         'shuraim': {
             label: 'سعود الشريم',
+            introIstiadha: 2.9,
+            introBasmala: 3.4,
             sources: [
                 { baseUrl: 'https://server6.mp3quran.net/shur', ext: '.mp3' },
                 { baseUrl: 'https://cdn.mualim.app/saud-al-shuraim-murattal', ext: '.opus' }
             ]
         }
-    } as Record<string, { label: string; sources: Array<{ baseUrl: string; ext: string }> }>,
+    } as Record<string, { label: string; introIstiadha: number; introBasmala: number; sources: Array<{ baseUrl: string; ext: string }> }>,
 
     init(): void {
         this.audio = new Audio();
@@ -124,6 +130,22 @@ export const PlayerModule = {
         }
     },
 
+
+    getIntroTimings(surahId: number): { istiadhaDuration: number; basmalaDuration: number; totalIntro: number } {
+        const reciter = this.reciters[this.currentReciter] || this.reciters['alafasy'];
+        const istiadhaDuration = reciter.introIstiadha || 3.5;
+        
+        let basmalaDuration = 0;
+        // In Surah 1 (Al-Fatiha), Basmala is Ayah 1, so it shouldn't be counted in intro
+        // In Surah 9 (At-Tawbah), there is no Basmala
+        if (surahId !== 1 && surahId !== 9) {
+            basmalaDuration = reciter.introBasmala || 4.0;
+        }
+
+        const totalIntro = istiadhaDuration + basmalaDuration;
+        return { istiadhaDuration, basmalaDuration, totalIntro };
+    },
+
     onMetadataLoaded(): void {
         this.calculateAyahTimings();
         this.updateTimeDisplay();
@@ -136,6 +158,8 @@ export const PlayerModule = {
         const ayahElements = document.querySelectorAll('[data-ayah]');
         if (ayahElements.length === 0) return;
 
+        const { istiadhaDuration, basmalaDuration, totalIntro } = this.getIntroTimings(this.currentSurah);
+
         const lengths: number[] = [];
         let totalLength = 0;
 
@@ -147,11 +171,13 @@ export const PlayerModule = {
             totalLength += len;
         });
 
+        // Compute actual verses duration excluding intro Isti'adha & Basmala
+        const versesDuration = Math.max(1, duration - totalIntro);
         this.ayahTimings = [];
-        let accumulated = 0;
+        let accumulated = totalIntro;
 
         ayahElements.forEach((el, i) => {
-            const share = (lengths[i] / totalLength) * duration;
+            const share = (lengths[i] / totalLength) * versesDuration;
             this.ayahTimings.push({
                 index: i,
                 ayahNum: i + 1,
@@ -183,11 +209,20 @@ export const PlayerModule = {
             }
 
             const t = this.audio.currentTime;
-            const active = this.ayahTimings.find(x => t >= x.startTime && t < x.endTime);
+            const { istiadhaDuration, totalIntro } = this.getIntroTimings(this.currentSurah);
 
-            if (active && active.index !== this.lastActiveAyah) {
-                this.lastActiveAyah = active.index;
-                this.highlightActiveAyah(active.ayahNum);
+            if (t < istiadhaDuration) {
+                this.highlightIntro('istiadha');
+            } else if (t < totalIntro) {
+                this.highlightIntro('basmala');
+            } else {
+                this.clearIntroHighlight();
+                const active = this.ayahTimings.find(x => t >= x.startTime && t < x.endTime);
+
+                if (active && active.index !== this.lastActiveAyah) {
+                    this.lastActiveAyah = active.index;
+                    this.highlightActiveAyah(active.ayahNum);
+                }
             }
 
             this.scrollAnimId = requestAnimationFrame(tick);
@@ -202,7 +237,62 @@ export const PlayerModule = {
         }
     },
 
+    highlightIntro(type: 'istiadha' | 'basmala'): void {
+        document.querySelectorAll('.active-ayah').forEach(el => el.classList.remove('active-ayah'));
+        this.lastActiveAyah = -1;
+
+        const istiadhaEl = document.getElementById('istiadhaBanner');
+        const basmalaEl = document.getElementById('basmalaBanner');
+
+        if (type === 'istiadha') {
+            if (istiadhaEl) {
+                istiadhaEl.classList.add('active-intro');
+                istiadhaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (basmalaEl) basmalaEl.classList.remove('active-intro');
+        } else if (type === 'basmala') {
+            if (basmalaEl) {
+                basmalaEl.classList.add('active-intro');
+                basmalaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (istiadhaEl) istiadhaEl.classList.remove('active-intro');
+        }
+    },
+
+    clearIntroHighlight(): void {
+        const istiadhaEl = document.getElementById('istiadhaBanner');
+        const basmalaEl = document.getElementById('basmalaBanner');
+        if (istiadhaEl) istiadhaEl.classList.remove('active-intro');
+        if (basmalaEl) basmalaEl.classList.remove('active-intro');
+    },
+
+    seekToIntro(type: 'istiadha' | 'basmala'): void {
+        const { istiadhaDuration } = this.getIntroTimings(this.currentSurah);
+        if (type === 'istiadha') {
+            this.audio.currentTime = 0;
+            this.highlightIntro('istiadha');
+        } else if (type === 'basmala') {
+            this.audio.currentTime = istiadhaDuration;
+            this.highlightIntro('basmala');
+        }
+        if (!this.isPlaying) {
+            this.audio.play();
+        }
+    },
+
+    seekToAyah(ayahNum: number): void {
+        const timing = this.ayahTimings.find(x => x.ayahNum === ayahNum);
+        if (timing) {
+            this.audio.currentTime = timing.startTime;
+            this.highlightActiveAyah(ayahNum);
+            if (!this.isPlaying) {
+                this.audio.play();
+            }
+        }
+    },
+
     highlightActiveAyah(ayahNum: number): void {
+        this.clearIntroHighlight();
         document.querySelectorAll('.active-ayah').forEach(el => el.classList.remove('active-ayah'));
         const el = document.getElementById(`ayah-${ayahNum}`);
         if (el) {
@@ -220,6 +310,22 @@ export const PlayerModule = {
         const clickX = event.clientX - rect.left;
         const ratio = 1 - (clickX / rect.width);
         this.audio.currentTime = Math.max(0, Math.min(this.audio.duration, ratio * this.audio.duration));
+
+        // Immediately reflect seeked position in highlight
+        const t = this.audio.currentTime;
+        const { istiadhaDuration, totalIntro } = this.getIntroTimings(this.currentSurah);
+        if (t < istiadhaDuration) {
+            this.highlightIntro('istiadha');
+        } else if (t < totalIntro) {
+            this.highlightIntro('basmala');
+        } else {
+            this.clearIntroHighlight();
+            const active = this.ayahTimings.find(x => t >= x.startTime && t < x.endTime);
+            if (active) {
+                this.lastActiveAyah = active.index;
+                this.highlightActiveAyah(active.ayahNum);
+            }
+        }
     },
 
     skip(seconds: number): void {

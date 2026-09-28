@@ -63,16 +63,55 @@
     gap: 6px;
 }
 
-/* Basmala Calligraphy Presentation */
+/* Intro Recitation (Isti'adha & Basmala) */
+.intro-revelation-box {
+    text-align: center;
+    margin: 4px auto 26px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.istiadha-banner,
 .basmala-banner {
     text-align: center;
     font-family: var(--font-quran);
-    font-size: 38px;
     color: var(--primary);
-    padding: 16px 20px 24px;
-    margin-bottom: 20px;
+    border-radius: 14px;
+    padding: 10px 28px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    border: 2px solid transparent;
     user-select: text;
+    display: inline-block;
+}
+
+.istiadha-banner {
+    font-size: 26px;
+    color: var(--text-secondary);
+    opacity: 0.9;
+    letter-spacing: 0.5px;
+}
+
+.basmala-banner {
+    font-size: 38px;
+    font-weight: 700;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.istiadha-banner:hover,
+.basmala-banner:hover {
+    background: var(--hover-bg);
+}
+
+.istiadha-banner.active-intro,
+.basmala-banner.active-intro {
+    background: var(--active-ayah-bg);
+    border-color: var(--active-ayah-border);
+    box-shadow: 0 0 0 2px var(--active-ayah-border), 0 8px 24px rgba(212, 175, 55, 0.25);
+    color: var(--gold);
+    transform: scale(1.02);
 }
 
 /* Reader Toolbar Controls */
