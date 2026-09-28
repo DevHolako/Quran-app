@@ -69,6 +69,9 @@ jobs:
 
       - name: Upload to Google Drive & Update version.json
         env:
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
           GDRIVE_FOLDER_ID: '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0'
         run: node scripts/upload-to-drive.js

@@ -25,40 +25,54 @@ function findFiles(dir, pattern, maxDepth = 4, currentDepth = 0) {
     return results;
 }
 
-// 2. Parse Credentials (supports raw JSON or base64 encoded JSON)
-function getCredentials() {
+// 2. Authentication: OAuth 2.0 User (Preferred, personal quota) OR Service Account
+function getAuthClient() {
+    // Check for OAuth 2.0 User Tokens (Personal Google Account Quota)
+    const clientId = process.env.GDRIVE_CLIENT_ID;
+    const clientSecret = process.env.GDRIVE_CLIENT_SECRET;
+    const refreshToken = process.env.GDRIVE_REFRESH_TOKEN;
+
+    if (clientId && clientSecret && refreshToken) {
+        console.log('[Auth] Authenticating via OAuth 2.0 User Credentials (Personal Quota Enabled).');
+        const oauth2Client = new auth.OAuth2(
+            clientId.trim(),
+            clientSecret.trim(),
+            'http://localhost:8085'
+        );
+        oauth2Client.setCredentials({
+            refresh_token: refreshToken.trim()
+        });
+        return oauth2Client;
+    }
+
+    // Fallback: Service Account JSON or Base64
     let raw = process.env.GDRIVE_CREDENTIALS;
-    if (!raw || !raw.trim()) {
-        throw new Error('GDRIVE_CREDENTIALS secret is not set! Please add it in your repository Settings > Environments > main > Environment secrets or Repository Secrets.');
-    }
-
-    raw = raw.trim();
-    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-        raw = raw.slice(1, -1).trim();
-    }
-
-    // Try direct JSON parse
-    try {
-        const parsed = JSON.parse(raw);
-        if (parsed.client_email && (parsed.private_key || parsed.private_key_id)) {
-            console.log(`[Auth] Loaded Google Service Account credentials for: ${parsed.client_email}`);
-            return parsed;
+    if (raw && raw.trim()) {
+        raw = raw.trim();
+        if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+            raw = raw.slice(1, -1).trim();
         }
-    } catch (e) {}
 
-    // Try base64 decode
-    try {
-        const decoded = Buffer.from(raw, 'base64').toString('utf8');
-        const parsed = JSON.parse(decoded);
-        if (parsed.client_email) {
-            console.log(`[Auth] Loaded base64-decoded Google Service Account for: ${parsed.client_email}`);
-            return parsed;
+        let parsedCreds = null;
+        try {
+            parsedCreds = JSON.parse(raw);
+        } catch (e) {
+            try {
+                const decoded = Buffer.from(raw, 'base64').toString('utf8');
+                parsedCreds = JSON.parse(decoded);
+            } catch (err) {}
         }
-    } catch (e) {
-        throw new Error(`Failed to parse GDRIVE_CREDENTIALS as JSON or Base64-encoded JSON: ${e.message}`);
+
+        if (parsedCreds && parsedCreds.client_email) {
+            console.log(`[Auth] Authenticating via Service Account: ${parsedCreds.client_email}`);
+            return new auth.GoogleAuth({
+                credentials: parsedCreds,
+                scopes: ['https://www.googleapis.com/auth/drive']
+            });
+        }
     }
 
-    throw new Error('Invalid GDRIVE_CREDENTIALS format. Expected Google Service Account JSON key.');
+    throw new Error('No valid Google Drive credentials found! Please configure GDRIVE_CLIENT_ID, GDRIVE_CLIENT_SECRET, and GDRIVE_REFRESH_TOKEN in GitHub Secrets.');
 }
 
 // 3. Upload or update a file in Google Drive
@@ -72,7 +86,9 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
     // Search for existing file in target folder
     const listRes = await driveClient.files.list({
         q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
-        fields: 'files(id, name, webViewLink, webContentLink)'
+        fields: 'files(id, name, webViewLink, webContentLink)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
     });
 
     const existingFiles = listRes.data.files || [];
@@ -89,7 +105,8 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
                 mimeType: mimeType || 'application/octet-stream',
                 body: fs.createReadStream(filePath)
             },
-            fields: 'id, name, webViewLink, webContentLink'
+            fields: 'id, name, webViewLink, webContentLink',
+            supportsAllDrives: true
         });
 
         fileId = updateRes.data.id;
@@ -107,7 +124,8 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
                 mimeType: mimeType || 'application/octet-stream',
                 body: fs.createReadStream(filePath)
             },
-            fields: 'id, name, webViewLink, webContentLink'
+            fields: 'id, name, webViewLink, webContentLink',
+            supportsAllDrives: true
         });
 
         fileId = createRes.data.id;
@@ -122,7 +140,8 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
             requestBody: {
                 role: 'reader',
                 type: 'anyone'
-            }
+            },
+            supportsAllDrives: true
         });
         console.log(`[Permissions] Public download access enabled for ${fileName}.`);
     } catch (permErr) {
@@ -137,11 +156,7 @@ async function main() {
     console.log('🚀 Quran App Auto-Deploy & Google Drive Synchronizer');
     console.log('====================================================');
 
-    const credentials = getCredentials();
-    const authClient = new auth.GoogleAuth({
-        credentials,
-        scopes: ['https://www.googleapis.com/auth/drive']
-    });
+    const authClient = getAuthClient();
     const driveClient = drive({ version: 'v3', auth: authClient });
 
     const rootDir = process.cwd();
@@ -206,7 +221,8 @@ async function main() {
                 mimeType: 'application/json',
                 body: fs.createReadStream(versionJsonPath)
             },
-            fields: 'id, name, webViewLink'
+            fields: 'id, name, webViewLink',
+            supportsAllDrives: true
         });
         versionUpload = { fileId: updateRes.data.id, webViewLink: updateRes.data.webViewLink };
         console.log(`[version.json] Successfully updated known version.json file directly!`);
