@@ -217,11 +217,12 @@ async function main() {
         console.log(`\n[version.json] Attempting direct update of target file ID: ${targetVersionId}...`);
         const updateRes = await driveClient.files.update({
             fileId: targetVersionId,
+            addParents: FOLDER_ID,
             media: {
                 mimeType: 'application/json',
                 body: fs.createReadStream(versionJsonPath)
             },
-            fields: 'id, name, webViewLink',
+            fields: 'id, name, webViewLink, parents',
             supportsAllDrives: true
         });
         versionUpload = { fileId: updateRes.data.id, webViewLink: updateRes.data.webViewLink };
