@@ -1,12 +1,26 @@
 // Client-Side Auto-Updater Module
 import { Storage } from './storage';
+import { escapeHtml, setTextContentPreservingWrapper } from './dom';
+
+// Version of the running bundle, injected by the build banner in
+// scripts/build-android.js. A hardcoded literal here goes stale the moment a new
+// build is installed: after updating to 1.0.5 the app would still report 1.0.4 and
+// keep advertising 1.0.5 as an available update. Desktop overrides this at init via
+// desktopAPI.getAppVersion(); on Android there is no such API, so this is the source.
+const BUNDLED_VERSION: string = ((window as any).__APP_VERSION__ as string) || '0.0.0';
 
 export const UpdaterModule = {
-    // Default update URL pointing to user's Google Drive version.json
+    // Desktop manifest, which advertises the Windows installer.
     defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
-    currentVersion: '1.0.4',
+    // Android has its own manifest; Platform.defaultUpdateUrl carries the URL baked in
+    // from update-channel.json at build time.
+    currentVersion: BUNDLED_VERSION,
     latestInfo: null as any,
     isDownloading: false,
+    isChecking: false,
+
+    /** Six hours. Frequent enough to catch a release, rare enough to spare battery. */
+    autoCheckIntervalMs: 6 * 60 * 60 * 1000,
 
     async init(): Promise<void> {
         if (window.desktopAPI && window.desktopAPI.getAppVersion) {
@@ -20,7 +34,8 @@ export const UpdaterModule = {
         // Populate update URL input in settings
         const input = document.getElementById('updateUrlInput') as HTMLInputElement | null;
         if (input) {
-            input.value = this.getUpdateUrl();
+            input.value = Storage.get<string | null>('custom_update_url', '') || '';
+            input.onchange = () => this.setUpdateUrl(input.value);
         }
 
         // Setup download progress listener
@@ -30,40 +45,112 @@ export const UpdaterModule = {
             });
         }
 
-        // Check for updates quietly 4 seconds after launch
-        setTimeout(() => {
-            this.checkForUpdates(false);
-        }, 4000);
+        // Quiet check a few seconds after launch, and again every time the app comes
+        // back to the foreground. No update channel configured means no polling.
+        this.startAutoChecks();
+    },
 
-        // Background loop: check automatically every 20 minutes
-        setInterval(() => {
-            this.checkForUpdates(false);
-        }, 20 * 60 * 1000);
+    /**
+     * Android will not install an APK in the background: outside the Play Store a
+     * normal app cannot update itself without the user confirming in the system
+     * installer. So "automatic" here means automatic *detection* and *download*,
+     * with a single tap left to the user. A background job would not help, because
+     * the install step is the part the platform forbids.
+     */
+    startAutoChecks(): void {
+        // Deliberately not gated on getUpdateUrl(): when it was, a build shipped with
+        // no channel never registered its listeners at all, so configuring a URL later
+        // did nothing until the next restart. autoCheck() re-reads the URL every time
+        // and no-ops cheaply when there is still none.
+        setTimeout(() => this.autoCheck(), 4000);
+
+        // Coming back to the foreground is the other moment a user is actually
+        // waiting, and it catches an app that was left open for days.
+        const capacitor = (window as any).Capacitor;
+        const appPlugin = capacitor && capacitor.Plugins && capacitor.Plugins.App;
+        if (appPlugin && typeof appPlugin.addListener === 'function') {
+            appPlugin.addListener('appStateChange', (state: any) => {
+                if (state && state.isActive) this.autoCheck();
+            });
+        }
+    },
+
+    /**
+     * Runs a quiet check, at most once per interval.
+     *
+     * The timestamp is only written once a check has actually reached the manifest.
+     * Recording it up front would mean a launch with no network, or a build shipped
+     * without a channel, burned the whole window and left the install without an
+     * update check for six hours.
+     */
+    async autoCheck(): Promise<void> {
+        if (this.isChecking || this.isDownloading) return;
+
+        const last = Storage.get<number>('last_update_check', 0) || 0;
+        if (Date.now() - last < this.autoCheckIntervalMs) return;
+
+        this.isChecking = true;
+        try {
+            if (await this.checkForUpdates(false)) {
+                Storage.set('last_update_check', Date.now());
+            }
+        } finally {
+            this.isChecking = false;
+        }
     },
 
     getUpdateUrl(): string {
         const saved = Storage.get<string | null>('custom_update_url', null);
-        return saved || this.defaultUpdateUrl;
+        if (saved) return saved;
+        const platform = (window as any).Platform;
+        if (platform) {
+            // Android must not poll the desktop manifest: it points at a .exe. An empty
+            // result is not a dead end: checkForUpdates() then discovers the channel at
+            // runtime, which is the default path now that no URL needs to ship in the APK.
+            return platform.name === 'android'
+                ? (platform.defaultUpdateUrl || '')
+                : this.defaultUpdateUrl;
+        }
+        return this.defaultUpdateUrl;
+    },
+
+    /** True when a check should run even without a configured URL. */
+    hasChannel(): boolean {
+        if (this.getUpdateUrl()) return true;
+        const platform = (window as any).Platform;
+        // Android always has a discoverable channel; desktop needs an explicit URL.
+        return !!platform && platform.name === 'android';
     },
 
     setUpdateUrl(url: string): void {
         const trimmed = url.trim();
         Storage.set('custom_update_url', trimmed);
         const app = (window as any).App;
-        if (app) app.showToast('✅ تم حفظ رابط التحديث');
+        if (app) app.showToast(trimmed ? '✅ تم حفظ رابط التحديث' : '✅ تم مسح رابط التحديث المخصص');
     },
 
-    async checkForUpdates(isManual: boolean = false): Promise<void> {
+    /**
+     * Performs one update check.
+     *
+     * Returns whether the check actually reached the manifest. The caller uses this
+     * to decide if the retry window may be closed: this method reports its own errors
+     * and never rejects, so a bare `await` here would mark a failed launch — offline
+     * device, unreachable Drive, no channel configured yet — as a completed check.
+     */
+    async checkForUpdates(isManual: boolean = false): Promise<boolean> {
         const app = (window as any).App;
         if (!window.desktopAPI || !window.desktopAPI.checkForUpdates) {
             if (isManual && app) app.showToast('⚠️ خدمة التحديث تعمل داخل تطبيق سطح المكتب فقط');
-            return;
+            return false;
         }
 
         const updateUrl = this.getUpdateUrl();
-        if (!updateUrl) {
-            if (isManual && app) app.showToast('⚠️ يرجى إدخال رابط التحديث أولاً في الإعدادات');
-            return;
+        if (!updateUrl && !this.hasChannel()) {
+            const platform = (window as any).Platform;
+            if (isManual && app) {
+                app.showToast('⚠️ يرجى إدخال رابط التحديث أولاً في الإعدادات');
+            }
+            return false;
         }
 
         if (isManual && app) {
@@ -76,12 +163,19 @@ export const UpdaterModule = {
                 if (isManual && app) {
                     app.showToast(`⚠️ تعذر فحص التحديث: ${res.error || 'خطأ في الاتصال'}`);
                 }
-                return;
+                return false;
             }
 
             if (res.hasUpdate) {
                 this.latestInfo = res;
-                this.showUpdateBanner(res);
+
+                // A dismissed banner stays dismissed for that exact version, so
+                // resuming the app does not put it back on screen every time. A
+                // genuinely newer release carries a different number and clears it.
+                const dismissed = Storage.get<string | null>('update_banner_dismissed', null);
+                if (dismissed !== String(res.latestVersion)) {
+                    this.showUpdateBanner(res);
+                }
 
                 if (isManual) {
                     this.showUpdateModal(res);
@@ -97,9 +191,11 @@ export const UpdaterModule = {
                     app.showToast(`✅ أنت تستخدم أحدث إصدار بالفعل (v${this.currentVersion})`);
                 }
             }
+            return true;
         } catch (err) {
             console.error('Update check error:', err);
             if (isManual && app) app.showToast('⚠️ حدث خطأ أثناء التحقق من التحديث');
+            return false;
         }
     },
 
@@ -107,7 +203,9 @@ export const UpdaterModule = {
         const banner = document.getElementById('updateTopBanner');
         const textEl = document.getElementById('updateBannerText');
         if (textEl) {
-            textEl.innerHTML = `<i data-lucide="sparkles"></i> يتوفر تحديث جديد للمصحف الشريف (الإصدار v${info.latestVersion}) - اضغط للتحديث!`;
+            // latestVersion comes from the remote update manifest, so it is escaped
+            // before being dropped alongside the icon markup.
+            textEl.innerHTML = `<i data-lucide="sparkles"></i> يتوفر تحديث جديد للمصحف الشريف (الإصدار v${escapeHtml(info.latestVersion)}) - اضغط للتحديث!`;
             if (window.lucide && typeof window.lucide.createIcons === 'function') {
                 window.lucide.createIcons();
             }
@@ -121,6 +219,9 @@ export const UpdaterModule = {
         const banner = document.getElementById('updateTopBanner');
         if (banner) {
             banner.classList.remove('visible');
+        }
+        if (this.latestInfo) {
+            Storage.set('update_banner_dismissed', String(this.latestInfo.latestVersion));
         }
     },
 
@@ -143,9 +244,16 @@ export const UpdaterModule = {
         if (verEl) verEl.textContent = `الإصدار الجديد: v${info.latestVersion}`;
         if (currentVerEl) currentVerEl.textContent = `إصدارك الحالي: v${info.currentVersion}`;
         if (notesEl) {
-            notesEl.innerHTML = info.changelog 
-                ? `<div style="white-space: pre-wrap;">${info.changelog}</div>` 
-                : 'يتضمن هذا التحديث تحسينات في الأداء وإصلاحات عامة.';
+            // The changelog is whatever the remote manifest says it is, so it is shown
+            // as text. The wrapper div is kept because it owns the white-space: pre-wrap
+            // that makes the plain-text line breaks render.
+            if (info.changelog) {
+                setTextContentPreservingWrapper(notesEl, '', info.changelog);
+                const wrapper = notesEl.firstElementChild as HTMLElement | null;
+                if (wrapper) wrapper.style.whiteSpace = 'pre-wrap';
+            } else {
+                notesEl.textContent = 'يتضمن هذا التحديث تحسينات في الأداء وإصلاحات عامة.';
+            }
         }
 
         if (progressBox) progressBox.style.display = 'none';

@@ -1,0 +1,4 @@
+{
+  "$comment": "Canal de mise à jour Android. Volontairement vide : l'application découvre son canal à l'exécution (voir src/renderer/js/update-discovery.ts), en essayant version-android.json puis update-channel.json sur le dépôt public, et l'asset de la dernière GitHub Release. Aucun lien n'est donc figé dans l'APK. Conséquence : pour publier, il suffit de pousser version-android.json sur la branche principale — aucun rebuild de l'APK n'est nécessaire. Renseignez 'android' uniquement pour ajouter une source prioritaire (par exemple Drive) en secours.",
+  "android": ""
+}

@@ -7,6 +7,25 @@ dist-app/
 *.exe
 *.blockmap
 
+# Capacitor / Android build outputs
+www/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/build/
+android/app/release/
+*.apk
+*.aab
+*.jks
+*.keystore
+android/keystore.properties
+
+# On-device test artefacts (screenshots, emulator logs)
+test-artifacts/
+
 # Logs
 *.log
 npm-debug.log*
