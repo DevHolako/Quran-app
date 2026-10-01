@@ -1,8 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 const { drive, auth } = require('@googleapis/drive');
+const { readAndroidUpdateUrl, writeAndroidUpdateUrl } = require('./update-channel');
 
 const FOLDER_ID = process.env.GDRIVE_FOLDER_ID || '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0';
+
+// Android gets its own manifest, on its own Drive file.
+//
+// The single shared version.json cannot serve both platforms: this script overwrites
+// its downloadUrl with the freshly uploaded Windows installer, so Android reads a
+// manifest pointing at a .exe and platform.ts rejects it with 'android-requires-apk'.
+// The result is that Android can never self-update no matter how often the desktop
+// build is published. Two channels, two files.
+const ANDROID_MANIFEST_NAME = 'version-android.json';
 
 // 1. Recursive file search
 function findFiles(dir, pattern, maxDepth = 4, currentDepth = 0) {
@@ -151,7 +161,119 @@ async function uploadOrUpdateFile(driveClient, folderId, filePath, customFileNam
     return { fileId, webViewLink };
 }
 
+async function publishAndroid(driveClient) {
+    const rootDir = process.cwd();
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+
+    console.log('====================================================');
+    console.log('📱 Quran App — publication du canal Android');
+    console.log('====================================================');
+    console.log(`[Project] version package.json : ${pkg.version}`);
+
+    // 1. Locate the release APK.
+    const apkCandidates = [
+        path.join(rootDir, 'android', 'app', 'build', 'outputs', 'apk', 'release', 'app-release.apk')
+    ];
+    const apkPath = apkCandidates.find(p => fs.existsSync(p));
+    if (!apkPath) {
+        throw new Error(
+            'APK release introuvable. Construisez-le d\'abord :\n' +
+            '  npm run android:sync   puis   gradlew assembleRelease\n' +
+            'Cherché : ' + apkCandidates.join(', ')
+        );
+    }
+    console.log(`[APK] ${path.relative(rootDir, apkPath)} (${(fs.statSync(apkPath).size / 1048576).toFixed(2)} Mo)`);
+
+    // 2. Upload the APK.
+    console.log(`\n[APK] Envoi vers Drive (dossier ${FOLDER_ID})...`);
+    const apkUpload = await uploadOrUpdateFile(
+        driveClient,
+        FOLDER_ID,
+        apkPath,
+        `Quran_App_${pkg.version}.apk`,
+        'application/vnd.android.package-archive'
+    );
+    const apkUrl = `https://drive.google.com/file/d/${apkUpload.fileId}/view?usp=drive_link`;
+
+    // 3. Build the Android manifest, reusing the changelog authored in version.json.
+    const desktopManifestPath = path.join(rootDir, 'version.json');
+    let changelog = '';
+    if (fs.existsSync(desktopManifestPath)) {
+        try {
+            changelog = JSON.parse(fs.readFileSync(desktopManifestPath, 'utf8')).changelog || '';
+        } catch (err) {
+            console.log(`[version-android.json] version.json illisible, changelog ignoré : ${err.message}`);
+        }
+    }
+
+    const androidManifest = {
+        platform: 'android',
+        version: pkg.version,
+        releaseDate: new Date().toISOString().split('T')[0],
+        downloadUrl: apkUrl,
+        changelog
+    };
+
+    const androidManifestPath = path.join(rootDir, ANDROID_MANIFEST_NAME);
+    fs.writeFileSync(androidManifestPath, JSON.stringify(androidManifest, null, 2) + '\n', 'utf8');
+    console.log(`\n[${ANDROID_MANIFEST_NAME}] écrit :`, androidManifestPath);
+    console.log(`   version=${androidManifest.version}  downloadUrl=${androidManifest.downloadUrl}`);
+
+    // 4. Publish it, reusing a stable file ID when one already exists so the baked-in
+    //    URL keeps resolving across releases instead of changing every time.
+    const existingUrl = readAndroidUpdateUrl(rootDir);
+    const existingIdMatch = existingUrl.match(/file\/d\/([\w-]+)/);
+    const pinnedId = process.env.GDRIVE_ANDROID_VERSION_FILE_ID || (existingIdMatch && existingIdMatch[1]) || null;
+
+    let manifestUrl;
+    if (pinnedId) {
+        console.log(`[${ANDROID_MANIFEST_NAME}] Mise à jour du fichier Drive existant ${pinnedId}...`);
+        await driveClient.files.update({
+            fileId: pinnedId,
+            media: {
+                mimeType: 'application/json',
+                body: fs.createReadStream(androidManifestPath)
+            },
+            fields: 'id, name',
+            supportsAllDrives: true
+        });
+        manifestUrl = `https://drive.google.com/file/d/${pinnedId}/view?usp=drive_link`;
+    } else {
+        console.log(`[${ANDROID_MANIFEST_NAME}] Premier publication — création du fichier Drive...`);
+        const uploaded = await uploadOrUpdateFile(
+            driveClient,
+            FOLDER_ID,
+            androidManifestPath,
+            ANDROID_MANIFEST_NAME,
+            'application/json'
+        );
+        manifestUrl = `https://drive.google.com/file/d/${uploaded.fileId}/view?usp=drive_link`;
+    }
+
+    // 5. Record it so the next build bakes it in.
+    writeAndroidUpdateUrl(rootDir, manifestUrl);
+
+    console.log('\n====================================================');
+    console.log('🎉 Canal Android publié');
+    console.log(`APK ID      : ${apkUpload.fileId}`);
+    console.log(`APK Link    : ${apkUrl}`);
+    console.log(`Manifeste   : ${manifestUrl}`);
+    console.log('====================================================');
+    console.log('\n⚠  L\'URL du manifeste est maintenant enregistrée dans update-channel.json.');
+    console.log('   Elle n\'est pourtant PAS encore dans l\'APK : elle est figée au build.');
+    console.log('   Pour que les installations actuelles reçoivent cette version :');
+    console.log('     1. npm run android:sync');
+    console.log('     2. gradlew assembleRelease  (puis publier cet APK-là à la prochaine release)');
+    console.log('   Les versions suivantes se mettent à jour seules, sans cette étape.');
+}
+
 async function main() {
+    if (process.argv.includes('--android')) {
+        const authClient = getAuthClient();
+        await publishAndroid(drive({ version: 'v3', auth: authClient }));
+        return;
+    }
+
     console.log('====================================================');
     console.log('🚀 Quran App Auto-Deploy & Google Drive Synchronizer');
     console.log('====================================================');
@@ -199,6 +321,7 @@ async function main() {
 
     const versionContent = JSON.parse(fs.readFileSync(versionJsonPath, 'utf8'));
     const downloadDirectUrl = `https://drive.google.com/file/d/${installerUpload.fileId}/view?usp=drive_link`;
+    versionContent.platform = 'desktop';
     versionContent.downloadUrl = downloadDirectUrl;
     versionContent.version = pkg.version;
     versionContent.releaseDate = new Date().toISOString().split('T')[0];

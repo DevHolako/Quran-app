@@ -1,5 +1,8 @@
 /* Modern Quran Application Design System */
-@import url('https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800&family=Scheherazade+New:wght@400;700&display=swap');
+
+/* Fonts are bundled locally (see css/fonts.css) so the Android build renders
+   correctly with no network. Run `node scripts/fetch-fonts.js` to refresh them. */
+@import url('fonts.css');
 
 :root {
     /* Emerald Theme (Default) */
@@ -103,8 +106,13 @@ html, body {
 #app {
     display: flex;
     flex-direction: column;
+    /* dvh tracks the soft keyboard and any collapsing system UI; the vh above is
+       the fallback for WebViews older than Chrome 108. */
     height: 100vh;
-    width: 100vw;
+    height: 100dvh;
+    /* 100% rather than 100vw: vw includes the classic scrollbar gutter and can
+       exceed the visible width once a side inset is reserved. */
+    width: 100%;
     overflow: hidden;
 }
 

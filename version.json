@@ -1,6 +1,7 @@
 {
-  "version": "1.0.4",
-  "releaseDate": "2026-09-28",
-  "downloadUrl": "https://drive.google.com/file/d/1xdyOicEOItVVeyvo2SKYdq7AZbYPac3h/view?usp=drive_link",
-  "changelog": "الإصدار 1.0.4:\n- استئناف تلاوة السورة مباشرة من لحظة التوقف عند إيقافها مؤقتاً (Pause / Resume)\n- إضافة زر إيقاف كامل للتلاوة (Stop Button) لإعادة السورة للبداية بضغطة واحدة\n- إضافة زر الانتقال لأعلى وبداية السورة (To Top / الرجوع لأول السورة) في شريط الأدوات وزر عائم ذكي\n- إمكانية تعديل الأذكار الموجودة (النص والتكرار) وإضافة أذكار جديدة وتخصيصها وحفظها سحابياً"
+  "platform": "desktop",
+  "version": "1.0.6",
+  "releaseDate": "2026-09-30",
+  "downloadUrl": "https://drive.google.com/file/d/1AsvoiOqh_NFLGImrnt_IPLB2r2YCqxz2/view?usp=drive_link",
+  "changelog": "الإصدار 1.0.6:\n- تحسين توافقية التطبيق مع شاشات الهواتف المحمولة\n- إصلاح ظهور عناصر التحكم بالصوت وإشعارات التطبيق\n- إصلاح تكرار البسملة في بداية بعض السور\n- تحسينات عامة على واجهة الاستخدام"
 }

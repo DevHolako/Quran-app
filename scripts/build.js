@@ -1,12 +1,16 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
+const { esbuildDefines } = require('./update-channel');
 
 const rootDir = path.resolve(__dirname, '..');
 const distAppDir = path.join(rootDir, 'dist-app');
 
 function copyDirRecursive(src, dest) {
-    if (!fs.existsSync(src)) return;
+    if (!fs.existsSync(src)) {
+        console.warn(`⚠️  source directory not found, skipping: ${src}`);
+        return;
+    }
     if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
     for (const item of fs.readdirSync(src)) {
         const srcPath = path.join(src, item);
@@ -57,7 +61,10 @@ async function build() {
         bundle: true,
         platform: 'browser',
         target: 'es2022',
-        sourcemap: false
+        sourcemap: false,
+        // The desktop bundle shares the renderer with Android, so it has to carry the
+        // same define even though only Android reads the value.
+        define: esbuildDefines(rootDir)
     });
 
     // 3. Copy Static Assets
@@ -70,6 +77,11 @@ async function build() {
     copyDirRecursive(
         path.join(rootDir, 'src/renderer/css'),
         path.join(distAppDir, 'renderer/css')
+    );
+
+    copyDirRecursive(
+        path.join(rootDir, 'src/renderer/fonts'),
+        path.join(distAppDir, 'renderer/fonts')
     );
 
     copyDirRecursive(

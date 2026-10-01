@@ -1,0 +1,563 @@
+/* ========================================================
+   MOBILE / TABLET LAYOUT
+   ========================================================
+   The desktop layout is a 3-column workspace (320px sidebar +
+   reader + 84px audio dock) which does not fit a phone. Everything
+   below turns it into: compact top bar, slide-over drawer for the
+   sidebar, and a stacked audio dock pinned to the bottom.
+
+   Loaded last so it wins over style.css / components.css.
+
+   Everything below is wrapped in the same max-width:1023px breakpoint that
+   App.isDrawerLayout() uses. Loaded unscoped, these rules won at desktop widths
+   as well: .sidebar became position:fixed with translateX(100%), so it was pushed
+   off-screen, and because .sidebar.collapsed carries the same translation,
+   toggleSidebar() (which only toggles .collapsed) could never bring it back. The
+   sidebar was unreachable on desktop: no surah index, no search, no settings.
+   ======================================================== */
+
+@media (max-width: 1023px) {
+
+:root {
+    --header-height: 56px;
+    --audio-dock-height: 132px;
+    --sidebar-width: 88vw;
+
+    /* MainActivity publishes the measured WindowInsets onto <html> as
+       --safe-area-inset-*. env() is only the fallback for the first paint, before
+       the native listener has fired: on Android it reports 0 unless the window
+       extends into the cutout, so it cannot be the primary source. */
+    --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    --safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+    --safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+
+    /* Height of the visible viewport. dvh follows the soft keyboard and any
+       collapsing system UI; the plain vh above it is the fallback for the
+       WebViews older than Chrome 108 that can still sit on API 24 hardware. */
+    --app-height: 100vh;
+    --app-height: 100dvh;
+}
+
+/* Touch targets: anything tappable needs at least 44px on Android. */
+button,
+.nav-btn,
+.player-btn,
+.ayah-action-btn,
+.surah-list-item,
+.tab-btn,
+.mode-btn,
+.zoom-btn {
+    touch-action: manipulation;
+}
+
+/* ---------- TOP BAR ---------- */
+/* min-height, not height: at a large system font size the row has to be able to
+   grow instead of clipping its content. */
+.top-nav {
+    padding: 0 calc(10px + var(--safe-right)) calc(0px + var(--safe-top)) calc(10px + var(--safe-left));
+    height: auto;
+    min-height: calc(var(--header-height) + var(--safe-top));
+    gap: 8px;
+}
+
+.brand-section {
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.brand-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+}
+
+/* The "desktop edition" badge has no room on a phone, but we keep title small. */
+.brand-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-right: auto;
+}
+.brand-badge {
+    display: none;
+}
+
+.nav-actions {
+    flex: 1;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0;
+}
+
+.nav-actions::-webkit-scrollbar {
+    display: none;
+}
+
+/* The five shortcut buttons (Al-Kahf, morning/evening adhkar, tasbih, my
+   recitation) live in the sidebar's "الأذكار والأدوات" tab below 768px, where
+   their labels render in full. At this width .nav-btn collapses to
+   font-size:0, so keeping them here would show five unlabelled icons.
+
+   Scoped to a media query on purpose: this file is loaded globally, not just on
+   phones, so a bare rule would also drop the desktop buttons. */
+@media (max-width: 767px) {
+    .nav-desktop-only {
+        display: none;
+    }
+
+    /* Four tabs no longer fit side by side at 88vw, and the labels must stay
+       readable, so let them wrap to two rows instead of shrinking the text. */
+    .sidebar-tabs {
+        flex-wrap: wrap;
+    }
+
+    .sidebar-tab {
+        flex: 1 1 45%;
+        font-size: 13px;
+        padding: 9px 6px;
+    }
+}
+
+/* Icons only: font-size:0 collapses the text nodes next to each <svg>. */
+.nav-btn {
+    font-size: 0;
+    gap: 0;
+    padding: 9px 10px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.nav-btn [data-lucide],
+.nav-btn svg.lucide {
+    margin-left: 0;
+    width: 19px;
+    height: 19px;
+}
+
+#resumeReadingBadge {
+    font-size: 12px;
+    padding: 6px 10px;
+    min-width: 0;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- SIDEBAR AS SLIDE-OVER DRAWER ---------- */
+/* Hidden by default; visibility is driven by `body.sidebar-open`, which
+   App.toggleSidebar() toggles. The desktop `.collapsed` contract still
+   applies from 1024px up (see the desktop rules at the bottom). */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    max-width: 340px;
+    height: 100%;
+    z-index: 1500;
+    transform: translateX(100%);
+    box-shadow: -6px 0 30px rgba(0, 0, 0, 0.25);
+    padding-top: var(--safe-top);
+    /* The drawer is pinned to the right edge, which in landscape is exactly where
+       a notch or a curved display edge sits. */
+    padding-right: var(--safe-right);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+}
+
+.sidebar.collapsed {
+    position: fixed;
+    right: 0;
+    transform: translateX(100%);
+}
+
+body.sidebar-open .sidebar {
+    transform: translateX(0);
+}
+
+/* Scrim behind the open drawer, added in index.html. */
+.sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1400;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+body.sidebar-open .sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sidebar-tab {
+    font-size: 0;
+    gap: 0;
+    min-height: 44px;
+}
+
+.sidebar-tab [data-lucide],
+.sidebar-tab svg.lucide {
+    margin-left: 0;
+    width: 18px;
+    height: 18px;
+}
+
+/* ---------- READING VIEW ---------- */
+.reading-view {
+    padding: 14px calc(14px + var(--safe-right)) calc(var(--audio-dock-height) + var(--safe-bottom) + 34px) calc(14px + var(--safe-left));
+    -webkit-overflow-scrolling: touch;
+}
+
+.surah-header-banner {
+    padding: 16px 12px !important;
+}
+
+.surah-name-arabic {
+    font-size: 24px !important;
+}
+
+.reader-controls-bar {
+    flex-wrap: wrap;
+    gap: 6px !important;
+}
+
+.ayah-card {
+    margin-bottom: 12px !important;
+}
+
+.ayah-arabic-text {
+    font-size: var(--quran-font-size) !important;
+    line-height: var(--quran-line-height) !important;
+}
+
+/* ---------- AUDIO DOCK: two stacked rows ---------- */
+/* min-height rather than height, so a large system font cannot clip the track
+   title; the reading view reserves the same minimum below. */
+.audio-dock {
+    height: auto;
+    min-height: calc(var(--audio-dock-height) + var(--safe-bottom));
+    padding: 8px calc(12px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(12px + var(--safe-left));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+        "track  side"
+        "center center"
+        "vol    vol";
+    gap: 12px 8px;
+    align-items: center;
+}
+
+.audio-track-info {
+    grid-area: track;
+    min-width: 0;
+    gap: 8px;
+}
+
+.reciter-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 17px;
+    flex-shrink: 0;
+}
+
+.track-text {
+    min-width: 0;
+}
+
+.track-surah {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-reciter-select {
+    font-size: 12px;
+    max-width: 46vw;
+    text-overflow: ellipsis;
+}
+
+.audio-center-controls {
+    grid-area: center;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    max-width: none;
+    margin: 0;
+    width: 100%;
+}
+
+.player-buttons-row {
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.player-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+}
+
+.play-pause-btn {
+    width: 46px !important;
+    height: 46px !important;
+}
+
+.timeline-scrubber-row {
+    flex: 1;
+    min-width: 0;
+    gap: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.time-display {
+    font-size: 10px;
+    min-width: 34px;
+}
+
+.progress-bar-container {
+    height: 12px;
+}
+
+.audio-side-features {
+    grid-area: side;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.volume-control {
+    display: flex;
+    grid-area: vol;
+    justify-content: center;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.player-side-btn {
+    width: 38px;
+    height: 38px;
+}
+
+.my-recitation-bar {
+    position: fixed;
+    bottom: calc(var(--audio-dock-height) + var(--safe-bottom) + 24px);
+    left: calc(12px + var(--safe-left));
+    right: calc(12px + var(--safe-right));
+    z-index: 1100;
+    justify-content: center !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+/* The sync popover would open off-screen next to the right edge. */
+.sync-offset-popover {
+    right: auto;
+    left: 0;
+    width: min(300px, 88vw);
+}
+
+/* ---------- TAFSIR DRAWER: full width ---------- */
+.tafsir-drawer {
+    width: 100% !important;
+    max-width: 100%;
+    border-left: none;
+    padding-top: var(--safe-top);
+    padding-right: var(--safe-right);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    bottom: calc(var(--audio-dock-height) + var(--safe-bottom)) !important;
+}
+
+.tafsir-drawer-header {
+    padding: 14px 16px;
+}
+
+.tafsir-drawer-body {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- MODALS: bottom sheet ---------- */
+.modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+}
+
+.modal-card {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    /* dvh so the sheet stays fully on screen when the soft keyboard is up. */
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+    padding-right: var(--safe-right);
+    padding-bottom: var(--safe-bottom);
+    padding-left: var(--safe-left);
+    animation: sheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sheetUp {
+    0% { opacity: 0; transform: translateY(24px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+    padding: 16px;
+}
+
+.modal-title {
+    font-size: 17px;
+}
+
+.modal-body {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- MISC ---------- */
+.scroll-to-top-fab {
+    bottom: calc(var(--audio-dock-height) + var(--safe-bottom) + 36px);
+    width: 44px;
+    height: 44px;
+}
+
+.toast-container {
+    top: calc(var(--header-height) + var(--safe-top) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90vw;
+    align-items: center;
+}
+
+.toast-msg {
+    max-width: 92vw;
+    width: auto;
+}
+
+/* Settings cards are built with inline styles; widen their flex rows. */
+#sidebarSettingsView [style*="display: flex"] {
+    flex-wrap: wrap;
+}
+
+#sidebarSettingsView select {
+    flex: 1;
+    min-width: 110px;
+    min-height: 40px;
+}
+
+#sidebarSettingsView input[type="range"] {
+    min-width: 0;
+}
+
+#sidebarSettingsView .nav-btn {
+    font-size: 13px;
+    gap: 6px;
+    min-height: 44px;
+}
+
+#dhikrIntervalSelect,
+#settingsTimingOffsetSlider {
+    width: 100%;
+}
+
+.update-top-banner {
+    font-size: 12px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+}
+
+}
+
+/* Android scales text in the WebView according to the system font size setting.
+   Asking for 100% keeps that scaling predictable instead of letting the WebView
+   also apply its own text autosizing on top. Kept outside the breakpoint above:
+   it is about the WebView, not about layout, so tablets get it too. */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* ---------- LANDSCAPE PHONES ---------- */
+@media (max-height: 480px) and (orientation: landscape) {
+    :root {
+        --audio-dock-height: 96px;
+    }
+
+    .audio-dock {
+        grid-template-areas:
+            "track  side center";
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 2fr);
+        grid-template-rows: auto;
+    }
+
+    .audio-center-controls {
+        flex-direction: column;
+    }
+
+    .player-buttons-row {
+        display: none;
+    }
+}
+
+/* ---------- TABLETS: keep the sidebar docked ---------- */
+@media (min-width: 700px) and (max-width: 1023px) {
+    :root {
+        --sidebar-width: 300px;
+        --audio-dock-height: 96px;
+    }
+
+    .sidebar {
+        position: relative;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        height: calc(var(--app-height) - var(--header-height) - var(--safe-top));
+        max-width: none;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .sidebar.collapsed {
+        position: relative;
+        transform: translateX(100%);
+    }
+
+    .sidebar-scrim {
+        display: none;
+    }
+
+    .audio-dock {
+        grid-template-areas: "track center side";
+        grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr) auto;
+        grid-template-rows: auto;
+    }
+
+    .volume-control {
+        display: flex;
+    }
+
+    .my-recitation-bar {
+        left: auto;
+        right: calc(12px + var(--safe-right));
+        width: 320px;
+    }
+
+    .modal-overlay {
+        padding: 20px;
+        align-items: center;
+    }
+
+    .modal-card {
+        border-radius: 20px;
+    }
+}

@@ -1,6 +1,7 @@
 // Adhkar, Tasbih & Periodic Reminders Module with Full Customization (Add / Edit / Delete)
 import type { AdhkarData, DhikrItem } from '../../types/quran';
 import { Storage } from './storage';
+import { escapeHtml, toSafeIndex } from './dom';
 
 export const DEFAULT_ADHKAR_DATA: AdhkarData = {
     sabah: [
@@ -190,17 +191,22 @@ export const AdhkarModule = {
                 html += '<div style="text-align: center; padding: 40px; color: var(--text-muted);">لا توجد أذكار مضافة حالياً. اضغط "إضافة ذكر" لإضافة أذكارك.</div>';
             } else {
                 items.forEach((item, index) => {
-                    const count = item.count || 1;
+                    // `item` comes from Storage, and Storage is seeded by an imported
+                    // backup file, so neither the text nor the counter is trustworthy.
+                    // The counter is also interpolated into an onclick argument list,
+                    // where a non-numeric value could break out of the attribute.
+                    const count = toSafeIndex(item.count, 1, 1000, 1);
                     const onClickAttr = !this.isEditMode ? `onclick="AdhkarModule.decrementAdhkarCard(${index}, ${count})"` : '';
+                    const typeArg = escapeHtml(this.currentType);
                     html += `
                         <div class="adhkar-card-item ${this.isEditMode ? 'in-edit-mode' : ''}" id="adhkar-item-${index}" ${onClickAttr}>
                             <span class="adhkar-counter-chip" id="adhkar-count-${index}">${count}</span>
-                            <span class="adhkar-text">${item.text}</span>
+                            <span class="adhkar-text">${escapeHtml(item.text)}</span>
                             <div class="adhkar-item-actions">
-                                <button class="adhkar-action-icon edit" onclick="event.stopPropagation(); AdhkarModule.openEditModal('${this.currentType}', ${index})" title="تعديل هذا الذكر">
+                                <button class="adhkar-action-icon edit" onclick="event.stopPropagation(); AdhkarModule.openEditModal('${typeArg}', ${index})" title="تعديل هذا الذكر">
                                     <i data-lucide="pencil"></i>
                                 </button>
-                                <button class="adhkar-action-icon delete" onclick="event.stopPropagation(); AdhkarModule.deleteDhikrItem('${this.currentType}', ${index})" title="حذف هذا الذكر">
+                                <button class="adhkar-action-icon delete" onclick="event.stopPropagation(); AdhkarModule.deleteDhikrItem('${typeArg}', ${index})" title="حذف هذا الذكر">
                                     <i data-lucide="trash-2"></i>
                                 </button>
                             </div>

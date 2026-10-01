@@ -1,0 +1,125 @@
+apply plugin: 'com.android.application'
+
+// Release signing. The keystore path/passwords come from keystore.properties
+// (git-ignored). There is deliberately NO debug-keystore fallback: that keystore is
+// generated on every machine with a well-known password, so signing a release with it
+// would hand anyone who unpacks the build the private key that authorises future
+// updates. A release build now fails loudly instead of shipping a debug-signed APK,
+// which also keeps ApkUpdaterPlugin's signature check meaningful.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
+def releaseKeystoreReady = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+        .every { keystoreProps.getProperty(it)?.trim() }
+
+def wantsReleaseTask = gradle.startParameter.taskNames
+        .any { it.toLowerCase().contains('release') }
+
+if (wantsReleaseTask && !releaseKeystoreReady) {
+    throw new GradleException(
+        "\nRelease signing is not configured.\n" +
+        "  Copy android/keystore.properties.example to android/keystore.properties and fill in\n" +
+        "  storeFile / storePassword / keyAlias / keyPassword.\n" +
+        "Refusing to sign a release build with the shared Android debug keystore.\n")
+}
+
+// Both the version name and the version code are derived from package.json so there
+// is exactly one place to bump a release. This matters for the in-app updater:
+// ApkUpdaterPlugin refuses any archive whose versionCode is not strictly greater than
+// the running one, so a re-published build that forgets to bump would be rejected by
+// the very installs it is meant to update.
+def packageJson = new groovy.json.JsonSlurper().parseText(rootProject.file('../package.json').text)
+def appVersionName = (keystoreProps.getProperty('versionName') ?: packageJson.version ?: '1.0.0').trim()
+
+/** Turns 1.2.3 into 10203 so the code rises with the version and never needs a manual counter. */
+def versionCodeFromName = { String name ->
+    def parts = (name ?: '0.0.0').tokenize('.-')
+    def pick = { int index -> (parts.size() > index && parts[index].isInteger()) ? parts[index].toInteger() : 0 }
+    return pick(0) * 10000 + pick(1) * 100 + pick(2)
+}
+
+def overrideVersionCode = (keystoreProps.getProperty('versionCode') ?: '').trim()
+def appVersionCode = overrideVersionCode.isEmpty()
+    ? versionCodeFromName(appVersionName)
+    : Integer.parseInt(overrideVersionCode)
+
+android {
+    namespace = "com.quran.creator"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.quran.creator"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (!releaseKeystoreReady) {
+                // Left empty on purpose: assembleDebug must keep working on a fresh clone
+                // with no signing material, and the guard above stops any *release* task
+                // from reaching this point anyway.
+                storeFile null
+            } else {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+            // minSdk is 24, so v1 (JAR) signing is dead weight. v2 covers
+            // Android 7+, v3 additionally allows rotating the signing key later.
+            enableV1Signing false
+            enableV2Signing true
+            enableV3Signing true
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

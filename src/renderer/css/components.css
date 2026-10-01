@@ -54,7 +54,10 @@
     border-left: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
+    /* dvh keeps the docked tablet sidebar aligned with the viewport while the
+       soft keyboard is open; vh is the fallback for older WebViews. */
     height: calc(100vh - var(--header-height));
+    height: calc(100dvh - var(--header-height));
     z-index: 90;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s;
 }
@@ -129,6 +132,93 @@
     background: var(--bg-surface);
     color: var(--primary);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* ---------- ADHKAR & TOOLS TAB ---------- */
+/* Rows instead of pills: on a phone the drawer is 88vw wide, so a title, a
+   subtitle and a chevron fit comfortably at a 52px tap height, and the label
+   text is never collapsed to an icon the way the top bar's .nav-btn is. */
+.tools-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+}
+
+.tool-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 52px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-surface);
+    font-family: inherit;
+    color: var(--text-primary);
+    text-align: start;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.tool-row:hover {
+    background: var(--bg-surface-alt);
+}
+
+.tool-row.active {
+    border-color: var(--primary);
+    background: var(--bg-surface-alt);
+}
+
+.tool-row-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--bg-surface-alt);
+    color: var(--primary);
+}
+
+.tool-row-icon [data-lucide],
+.tool-row-icon svg.lucide {
+    width: 20px;
+    height: 20px;
+}
+
+.tool-row-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tool-row-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+/* Wraps instead of truncating: these subtitles are the descriptive half of the
+   row and were unreadable when the drawer was narrow. */
+.tool-row-sub {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.tool-row-chevron {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 .sidebar-content {
