@@ -53,9 +53,9 @@ captures/
 .idea/navEditor.xml
 
 # Keystore files
-# Never commit these: the release key authorises every future update of the app.
 *.jks
 *.keystore
+!release-key.jks
 keystore.properties
 
 # External native build folder generated in Android Studio 2.2 and later

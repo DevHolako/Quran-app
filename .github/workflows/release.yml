@@ -120,13 +120,21 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
+          elif [ -f "android/release-key.jks" ]; then
+            echo "Using permanent committed release-key.jks for consistent signing..."
+            cat <<EOF > android/keystore.properties
+          storeFile=release-key.jks
+          storePassword=androidrelease
+          keyAlias=quran-release
+          keyPassword=androidrelease
+          EOF
           else
-            echo "Generating release keystore..."
-            keytool -genkeypair -v -keystore android/release.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10950 \
+            echo "Generating release keystore fallback..."
+            keytool -genkeypair -v -keystore android/release-key.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10950 \
               -alias quran-release -dname "CN=QuranApp, OU=Dev, O=QuranApp, L=Rabat, S=Rabat, C=MA" \
               -storepass androidrelease -keypass androidrelease
             cat <<EOF > android/keystore.properties
-          storeFile=release.jks
+          storeFile=release-key.jks
           storePassword=androidrelease
           keyAlias=quran-release
           keyPassword=androidrelease

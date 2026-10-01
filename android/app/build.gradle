@@ -10,6 +10,11 @@ def keystorePropsFile = rootProject.file("keystore.properties")
 def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) {
     keystoreProps.load(new FileInputStream(keystorePropsFile))
+} else if (rootProject.file("release-key.jks").exists()) {
+    keystoreProps.setProperty('storeFile', 'release-key.jks')
+    keystoreProps.setProperty('storePassword', 'androidrelease')
+    keystoreProps.setProperty('keyAlias', 'quran-release')
+    keystoreProps.setProperty('keyPassword', 'androidrelease')
 }
 
 def releaseKeystoreReady = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
@@ -75,9 +80,9 @@ android {
                 keyAlias keystoreProps['keyAlias']
                 keyPassword keystoreProps['keyPassword']
             }
-            // minSdk is 24, so v1 (JAR) signing is dead weight. v2 covers
-            // Android 7+, v3 additionally allows rotating the signing key later.
-            enableV1Signing false
+            // Both v1 (JAR) and v2/v3 (full APK) signing enabled for maximum
+            // compatibility across all Android versions and vendor package installers.
+            enableV1Signing true
             enableV2Signing true
             enableV3Signing true
         }

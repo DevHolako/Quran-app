@@ -1,7 +1,7 @@
 {
   "platform": "desktop",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "releaseDate": "2026-10-01",
-  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.11/Quran_App_Setup_1.0.11.exe",
-  "changelog": "الإصدار 1.0.11:\n- تحسين واجهة التثبيت المباشر بعد تنزيل التحديث في نظام أندرويد\n- تحسينات عامة في الأداء واستقرار التحديث التلقائي"
+  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.12/Quran_App_Setup_1.0.12.exe",
+  "changelog": "الإصدار 1.0.12:\n- توحيد الشهادة الرقمية والتوقيع الدائم لتطبيق الأندرويد لضمان عمل التحديث التلقائي المستمر\n- تفعيل توقيع V1 و V2/V3 معاً لأقصى توافقية مع مختلف أجهزة أندرويد"
 }
