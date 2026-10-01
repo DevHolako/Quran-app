@@ -6,18 +6,19 @@ const { spawnSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const androidDir = path.join(rootDir, 'android');
-const home = process.env.LOCALAPPDATA || process.env.USERPROFILE;
+const home = process.env.HOME || process.env.USERPROFILE || process.env.LOCALAPPDATA || '';
+const isWin = process.platform === 'win32';
 
 const javaHome = process.env.JAVA_HOME
-    || (fs.existsSync(path.join(home, 'Android', 'jdk21')) ? path.join(home, 'Android', 'jdk21') : path.join(home, 'Android', 'jdk17'));
-const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || path.join(home, 'Android', 'Sdk');
+    || (home && fs.existsSync(path.join(home, 'Android', 'jdk21')) ? path.join(home, 'Android', 'jdk21') : (home ? path.join(home, 'Android', 'jdk17') : ''));
+const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || (home ? path.join(home, 'Android', 'Sdk') : '');
 
-const javaBin = path.join(javaHome, 'bin', 'java.exe');
-if (!fs.existsSync(javaBin)) {
+const javaBin = path.join(javaHome, 'bin', isWin ? 'java.exe' : 'java');
+if (javaHome && !fs.existsSync(javaBin)) {
     console.error(`❌ JDK introuvable dans ${javaHome}. Installe JDK 21 ou définis JAVA_HOME.`);
     process.exit(1);
 }
-if (!fs.existsSync(sdk)) {
+if (!sdk || !fs.existsSync(sdk)) {
     console.error(`❌ Android SDK introuvable dans ${sdk}. Installe-le ou définis ANDROID_HOME.`);
     process.exit(1);
 }

@@ -27,12 +27,10 @@
     "apk": "node scripts/build-android.js && node scripts/gradle.js assembleRelease",
     "apk:install": "node scripts/build-android.js && node scripts/gradle.js installDebug",
     "apk:clean": "node scripts/gradle.js clean",
-    "upload:desktop": "node scripts/upload-to-drive.js",
-    "upload:android": "node scripts/upload-to-drive.js --android",
+    "manifests:release": "node scripts/generate-release-manifests.js",
     "fonts:update": "node scripts/fetch-fonts.js"
   },
   "devDependencies": {
-    "@googleapis/drive": "^26.0.1",
     "@types/node": "^26.6.3",
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",

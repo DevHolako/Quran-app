@@ -141,85 +141,28 @@ keytool -genkeypair -v -keystore android/quran-release.jks -storetype JKS \
 
 ---
 
-## 5. Auto-update
+## 5. Auto-update & GitHub Releases
 
-Le manifeste de mise à jour est un `version.json` sur Google Drive :
+Les versions et manifestes sont publiés directement sur **GitHub Releases** :
 
-Le manifeste de mise à jour Android est **séparé** du manifeste Windows :
-
-| Canal | Fichier Drive | Téléversé par |
+| Canal | Fichier | Source de téléchargement |
 |---|---|---|
-| Desktop (`.exe`) | `version.json` | `npm run upload:desktop` |
-| Android (`.apk`) | `version-android.json` | `npm run upload:android` |
+| Desktop (`.exe`) | `version.json` | `https://github.com/DevHolako/Quran-app/releases/download/vX.Y.Z/Quran_App_Setup_X.Y.Z.exe` |
+| Android (`.apk`) | `version-android.json` | `https://github.com/DevHolako/Quran-app/releases/download/vX.Y.Z/Quran_App_X.Y.Z.apk` |
 
-> Un seul manifeste partagé ne peut pas servir les deux plateformes :
-> `upload:desktop` y écrase `downloadUrl` avec l'installeur Windows, donc Android
-> lit un manifeste pointant vers un `.exe` et le rejette avec `android-requires-apk`.
-> Résultat : Android ne pouvait jamais se mettre à jour, quel que soit le nombre de
-> publications desktop. D'où les deux fichiers.
+### Fonctionnement du Self-Update (In-App comme AdGuard)
+1. **Détection** : L'APK interroge GitHub Releases (`/releases/latest/download/version-android.json` et `raw.githubusercontent.com/DevHolako/Quran-app/main/version-android.json`).
+2. **Téléchargement In-App** : Lors du clic sur "تحديث وتثبيت تلقائي الآن", l'APK est téléchargé en arrière-plan avec suivi de progression (0% à 100%). L'utilisateur **n'est pas redirigé vers un navigateur**.
+3. **Installation automatique** : Dès la fin du téléchargement, le plugin `ApkUpdaterPlugin` lance l'installateur système Android via `FileProvider`.
+4. **Gestion de l'autorisation d'installation** : Si l'autorisation d'installer des applications inconnues est requise (Android 8+), l'application guide l'utilisateur vers les paramètres, conserve l'APK téléchargé en cache, et relance l'installation automatiquement au retour sur l'application.
 
-```json
-{
-  "version": "1.0.5",
-  "releaseDate": "2026-09-29",
-  "downloadUrl": "https://drive.google.com/file/d/<ID_DU_APK>/view",
-  "changelog": "الإصدار 1.0.5: ..."
-}
-```
-
-### Première mise en place (une seule fois)
-
-L'APK 1.0.5 est prêt mais **ne peut pas encore se mettre à jour tout seul** : son
-canal est vide, donc `Platform.defaultUpdateUrl` est `""` au build. La séquence, dans
-l'ordre :
-
-1. Téléverser **`version-android.json`** (racine du dépôt) sur Drive, en partage
-   « toute personne ayant le lien », puis noter son lien.
-2. Écrire ce lien dans `update-channel.json` :
-   ```json
-   { "android": "https://drive.google.com/file/d/<ID_MANIFESTE>/view?usp=drive_link" }
-   ```
-3. `npm run apk` — le lien est maintenant figé dans l'APK.
-4. Téléverser cet APK sur Drive, puis régénérer le manifeste avec sa nouvelle URL :
-   ```bash
-   node scripts/gen-android-manifest.js <url-du-nouvel-apk>
-   ```
-5. Re-téléverser `version-android.json`.
-
-À partir de l'étape 5, les versions suivantes s'enchaînent sans intervention :
-`npm run upload:android` fait les étapes 4 et 5 et met à jour `update-channel.json`
-tout seul.
-
-> L'ordre compte : un APK ne peut contenir que l'URL du manifeste connue **avant**
-> son build. D'où le rebuild de l'étape 3, et le fait que la 1.0.5 ne peut pas se
-> mettre à jour elle-même. Ce n'est plus le cas à partir de la 1.0.6.
-
-### À partir de la version suivante
-
-```bash
-npm run apk            # construit l'APK release
-npm run upload:android # téléverse APK + version-android.json + met à jour le canal
-```
-
-`upload:android` écrit l'URL du nouveau manifeste dans `update-channel.json`, qui est
-**inclus dans le bundle au build** par `esbuild` (`__ANDROID_UPDATE_URL__`) puis lu par
-`Platform.defaultUpdateUrl`. Aucune étape manuelle ne subsiste.
-
-Garde-fous implémentés :
-- **isolation par canal** : chaque manifeste porte `"platform"`, et Android rejette
-  (`wrong-channel`) tout manifeste qui n'est pas marqué `android`. C'est le seul
-  garde-fou fiable, car un ID Drive est opaque et ne porte pas d'extension
-- un manifeste dont `downloadUrl` se termine par `.exe`/`.msi`/`.dmg` est rejeté
-  (`looksLikeApk()` dans `platform.ts`)
-- HTTPS obligatoire, redirections bornées à 5, package attendu `com.quran.creator`
-- signature comparée à celle de l'app installée : une APK non signée ou signée par
-  une autre clé est refusée avant installation
-- `versionCode` strictement supérieur, vérifié nativement par `ApkUpdaterPlugin`
-- Android demande à l'utilisateur d'autoriser « sources inconnues » au premier
-  installateur lancé
-- `last_update_check` n'est écrit qu'après un contrôle ayant réellement atteint le
-  manifeste, pour qu'un appareil hors ligne ou un build sans canal ne consomme pas
-  la fenêtre de 6 heures
+### Pipeline CI/CD GitHub Actions
+Le workflow `.github/workflows/release.yml` :
+- Se déclenche **uniquement lors d'un `push` sur la branche `main`** lorsqu'une nouvelle version est détectée (comparaison du tag `vX.Y.Z`).
+- Compile le binaire Windows (`.exe`) et l'APK Android (`.apk`).
+- Génère les manifestes `version.json` et `version-android.json`.
+- Crée la release GitHub avec tous les artefacts au même endroit.
+- Met à jour les manifestes sur `main` avec `[skip ci]`.
 
 ---
 

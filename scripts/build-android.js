@@ -29,18 +29,22 @@ function copyDirRecursive(src, dest) {
 }
 
 function getAndroidEnv() {
-    const home = process.env.LOCALAPPDATA || process.env.USERPROFILE;
-    const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || path.join(home, 'Android', 'Sdk');
-    // Capacitor 8 / AGP 8.x need JDK 21.
-    const jdk = process.env.JAVA_HOME || path.join(home, 'Android', 'jdk21');
+    const home = process.env.HOME || process.env.USERPROFILE || process.env.LOCALAPPDATA || '';
+    const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk') : path.join(home, 'Android', 'Sdk'));
+    const jdk = process.env.JAVA_HOME || (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Android', 'jdk21') : '');
 
-    if (!fs.existsSync(path.join(jdk, 'bin', 'java.exe'))) {
-        throw new Error(`JDK 21 introuvable dans ${jdk}. Défini JAVA_HOME.`);
+    const isWin = process.platform === 'win32';
+    const javaBinName = isWin ? 'java.exe' : 'java';
+
+    const env = { ...process.env };
+    if (jdk && fs.existsSync(path.join(jdk, 'bin', javaBinName))) {
+        env.JAVA_HOME = jdk;
     }
-    if (!fs.existsSync(sdk)) {
-        throw new Error(`Android SDK introuvable dans ${sdk}. Défini ANDROID_HOME.`);
+    if (sdk && fs.existsSync(sdk)) {
+        env.ANDROID_HOME = sdk;
+        env.ANDROID_SDK_ROOT = sdk;
     }
-    return { ...process.env, JAVA_HOME: jdk, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk };
+    return env;
 }
 
 // WebView devtools are how scripts/device-dom.js inspects a running app, but
