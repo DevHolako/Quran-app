@@ -1,7 +1,7 @@
 {
   "platform": "android",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "releaseDate": "2026-10-01",
-  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.10/Quran_App_1.0.10.apk",
-  "changelog": "الإصدار 1.0.10:\n- الانتقال لنظام التحديثات التلقائية المباشرة عبر GitHub Releases\n- دعم التحديث الذاتي التلقائي لتطبيق الأندرويد من داخل التطبيق مباشرة\n- تحسينات عامة في الأداء واستقرار التطبيق"
+  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.11/Quran_App_1.0.11.apk",
+  "changelog": "الإصدار 1.0.11:\n- تحسين واجهة التثبيت المباشر بعد تنزيل التحديث في نظام أندرويد\n- تحسينات عامة في الأداء واستقرار التحديث التلقائي"
 }

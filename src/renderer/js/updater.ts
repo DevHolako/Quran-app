@@ -257,7 +257,15 @@ export const UpdaterModule = {
         }
 
         if (progressBox) progressBox.style.display = 'none';
-        if (actionsBox) actionsBox.style.display = 'flex';
+        if (actionsBox) {
+            actionsBox.style.display = 'flex';
+            const mainBtn = actionsBox.querySelector('.btn-special') as HTMLButtonElement | null;
+            if (mainBtn) {
+                mainBtn.innerHTML = '<i data-lucide="download"></i> تحديث وتثبيت تلقائي الآن';
+                mainBtn.onclick = () => this.startDownload();
+                if ((window as any).lucide) (window as any).lucide.createIcons();
+            }
+        }
 
         if (modal) modal.classList.add('open');
     },
@@ -293,9 +301,17 @@ export const UpdaterModule = {
                 if (app) app.showToast(`⚠️ تعذر التحميل: ${res.error || 'فشل التنزيل'}`);
             } else if (res.needsPermission) {
                 this.isDownloading = false;
-                if (actionsBox) actionsBox.style.display = 'flex';
+                if (actionsBox) {
+                    actionsBox.style.display = 'flex';
+                    const mainBtn = actionsBox.querySelector('.btn-special') as HTMLButtonElement | null;
+                    if (mainBtn) {
+                        mainBtn.innerHTML = '<i data-lucide="check-circle"></i> تثبيت التحديث الآن';
+                        mainBtn.onclick = () => this.installDownloaded();
+                        if ((window as any).lucide) (window as any).lucide.createIcons();
+                    }
+                }
                 if (progressBox) progressBox.style.display = 'none';
-                if (app) app.showToast('✅ تم تنزيل التحديث بنجاح! يرجى السماح بتثبيت التطبيقات من الإعدادات ثم العودة لإتمام التثبيت', 8000);
+                if (app) app.showToast('✅ تم تنزيل التحديث بنجاح! يرجى السماح بتثبيت التطبيقات من الإعدادات ثم الضغط على تثبيت', 8000);
             } else {
                 this.isDownloading = false;
                 this.closeUpdateModal();
@@ -305,6 +321,16 @@ export const UpdaterModule = {
             if (actionsBox) actionsBox.style.display = 'flex';
             if (progressBox) progressBox.style.display = 'none';
             if (app) app.showToast(`⚠️ حدث خطأ أثناء تحميل التحديث: ${err?.message || ''}`);
+        }
+    },
+
+    async installDownloaded(): Promise<void> {
+        if (window.desktopAPI && window.desktopAPI.installDownloadedApk) {
+            const res = await window.desktopAPI.installDownloadedApk();
+            if (res && !res.success && res.needsPermission) {
+                const app = (window as any).App;
+                if (app) app.showToast('⚠️ يرجى السماح للتطبيق بتثبيت الحزم من الإعدادات أولاً');
+            }
         }
     },
 
