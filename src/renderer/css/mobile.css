@@ -55,7 +55,7 @@ button,
 /* min-height, not height: at a large system font size the row has to be able to
    grow instead of clipping its content. */
 .top-nav {
-    padding: 0 calc(10px + var(--safe-right)) calc(0px + var(--safe-top)) calc(10px + var(--safe-left));
+    padding: calc(0px + var(--safe-top)) calc(10px + var(--safe-right)) 0 calc(10px + var(--safe-left));
     height: auto;
     min-height: calc(var(--header-height) + var(--safe-top));
     gap: 8px;
