@@ -4,22 +4,53 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-windows:
-    name: Build Windows Application
-    runs-on: windows-latest
+  check-version:
+    name: Check Version Bump
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      - name: Inspect Version and Existing Git Tags
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Current package.json version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          git fetch --tags origin
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Workflow manually triggered via workflow_dispatch. Forcing release."
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "Git tag v$VERSION already exists. No version bump detected. Skipping release."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version bump detected! New version: v$VERSION. Proceeding with release."
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-windows:
+    name: Build Windows Application (.exe)
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -38,20 +69,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist
 
-      - name: Upload Build Artifacts
+      - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: quran-app-artifacts
-          path: |
-            dist/*.exe
-            version.json
+          name: windows-binaries
+          path: dist/*.exe
+          if-no-files-found: error
 
-  deploy-drive-and-release:
-    name: Upload to Google Drive & GitHub Release
-    needs: build-windows
+  build-android:
+    name: Build Android Application (.apk)
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
-    environment: main
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -62,29 +91,101 @@ jobs:
           node-version: 22
           cache: 'npm'
 
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install Dependencies
         run: npm install
 
-      - name: Download Build Artifacts
+      - name: Prepare Keystore for Release Signing
+        run: |
+          mkdir -p android
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Using production release keystore from secrets..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/release.jks
+            cat <<EOF > android/keystore.properties
+          storeFile=release.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          else
+            echo "Generating release keystore..."
+            keytool -genkeypair -v -keystore android/release.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10950 \
+              -alias quran-release -dname "CN=QuranApp, OU=Dev, O=QuranApp, L=Rabat, S=Rabat, C=MA" \
+              -storepass androidrelease -keypass androidrelease
+            cat <<EOF > android/keystore.properties
+          storeFile=release.jks
+          storePassword=androidrelease
+          keyAlias=quran-release
+          keyPassword=androidrelease
+          EOF
+          fi
+
+      - name: Build Android Web Bundle & Sync
+        run: npm run android:sync
+
+      - name: Build Release APK with Gradle
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Prepare APK Output
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          mkdir -p apk-output
+          cp android/app/build/outputs/apk/release/app-release.apk "apk-output/Quran_App_${VERSION}.apk"
+
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-binaries
+          path: apk-output/*.apk
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release & Update Manifests
+    needs: [check-version, build-windows, build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: quran-app-artifacts
-          path: dist
+          name: windows-binaries
+          path: release-assets
 
-      - name: Upload to Google Drive & Update version.json
-        env:
-          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
-          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
-          GDRIVE_FOLDER_ID: '1FPlrhNXbhK48Cwor-PLCC5sPUZb6sZL0'
-        run: node scripts/upload-to-drive.js
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-binaries
+          path: release-assets
+
+      - name: Generate Manifests for GitHub Releases
+        run: node scripts/generate-release-manifests.js
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            dist/*.exe
-            version.json
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
+          files: release-assets/*
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit Updated Manifests to Main
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add version.json version-android.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(release): update version manifests for v${{ needs.check-version.outputs.version }} [skip ci]" && git push origin main)
