@@ -1,6 +1,6 @@
 {
   "platform": "android",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "releaseDate": "2026-09-30",
   "downloadUrl": "https://drive.google.com/file/d/1nZZ6Sc4xqHW3QHmUniknCITJLyS6t1Z2/view?usp=drive_link",
   "changelog": "الإصدار 1.0.6:\n- تحسين توافقية التطبيق مع شاشات الهواتف المحمولة\n- إصلاح ظهور عناصر التحكم بالصوت وإشعارات التطبيق\n- إصلاح تكرار البسملة في بداية بعض السور\n- تحسينات عامة على واجهة الاستخدام"
