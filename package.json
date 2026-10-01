@@ -1,7 +1,7 @@
 {
   "name": "quran-desktop-app",
   "productName": "القرآن الكريم",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "description": "تطبيق القرآن الكريم والأذكار للويندوز بواجهة عصرية وتلاوة صوتية",
   "main": "dist-app/main/main.js",
   "author": "القرآن الكريم",
@@ -12,7 +12,24 @@
     "start": "node scripts/build.js && electron .",
     "dist": "node scripts/build.js && electron-builder --win --publish never",
     "dist:portable": "node scripts/build.js && electron-builder --win portable --publish never",
-    "dist:nsis": "node scripts/build.js && electron-builder --win nsis --publish never"
+    "dist:nsis": "node scripts/build.js && electron-builder --win nsis --publish never",
+    "android:sync": "node scripts/build-android.js",
+    "android:open": "node scripts/build-android.js && npx cap open android",
+    "android:test": "node scripts/build-android.js && node scripts/smoke-test.js",
+    "android:device": "node scripts/device-test.js",
+    "android:device:dom": "node scripts/device-dom.js",
+    "android:emulator": "node scripts/device-test.js --boot quran_api36",
+    "android:apk:inspect": "node scripts/build-android.js --inspect",
+    "avd": "node scripts/create-avd.js",
+    "emulator:probe": "node scripts/probe-emulator.js",
+    "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-icons.ps1",
+    "apk:debug": "node scripts/build-android.js && node scripts/gradle.js assembleDebug",
+    "apk": "node scripts/build-android.js && node scripts/gradle.js assembleRelease",
+    "apk:install": "node scripts/build-android.js && node scripts/gradle.js installDebug",
+    "apk:clean": "node scripts/gradle.js clean",
+    "upload:desktop": "node scripts/upload-to-drive.js",
+    "upload:android": "node scripts/upload-to-drive.js --android",
+    "fonts:update": "node scripts/fetch-fonts.js"
   },
   "devDependencies": {
     "@googleapis/drive": "^26.0.1",
@@ -20,7 +37,8 @@
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "ws": "^8.22.0"
   },
   "build": {
     "appId": "com.quran.desktop",
@@ -51,6 +69,14 @@
     }
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1",
     "lucide": "^1.48.0"
   }
 }

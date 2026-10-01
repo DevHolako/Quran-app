@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Every host this app talks to serves https, so cleartext is refused outright rather
+    than being narrowed per-domain. system CA trust only: a user-installed "security"
+    certificate must not be able to silently intercept Quran or audio traffic.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

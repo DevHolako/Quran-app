@@ -1,5 +1,6 @@
 // Slide-Over Tafsir Drawer Module
 import { Storage } from './storage';
+import { setTextContentPreservingWrapper } from './dom';
 
 export const TafsirModule = {
     currentSurah: 1,
@@ -41,7 +42,9 @@ export const TafsirModule = {
         }
 
         if (ayahBox) {
-            ayahBox.innerHTML = `﴿ ${verseText} ﴾`;
+            // verseText comes from api.alquran.cloud, so it is untrusted markup until
+            // proven otherwise: textContent, not innerHTML.
+            ayahBox.textContent = `﴿ ${verseText} ﴾`;
         }
 
         if (contentBox) {
@@ -67,7 +70,10 @@ export const TafsirModule = {
             }
 
             if (contentBox) {
-                contentBox.innerHTML = `<div class="tafsir-text-content">${text}</div>`;
+                // The tafsir body is fetched from a third-party GitHub mirror, so it is
+                // rendered as text. The wrapper div is kept because it carries the
+                // styling; only its *content* comes from the network.
+                setTextContentPreservingWrapper(contentBox, 'tafsir-text-content', text);
             }
         } catch (err) {
             console.error('Failed to load tafsir:', err);

@@ -2,12 +2,63 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--
+        Pinch-zoom is deliberately left enabled: maximum-scale=1 with user-scalable=no
+        locks out anyone who relies on magnification, which is an accessibility
+        failure rather than a layout convenience. viewport-fit=cover is what lets the
+        page reach under the status bar and the notch; MainActivity then publishes the
+        real insets so the CSS can stay clear of them.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!--
+        Content Security Policy.
+
+        Known gap, stated rather than hidden: 'unsafe-inline' in script-src is still
+        required because the UI wires ~150 controls through inline onclick/onchange
+        attributes. Until those move to addEventListener, an injected <script> would
+        still run, so escaping every innerHTML sink is what actually prevents XSS here;
+        this policy is the second layer, not the only one.
+
+        What it does buy today: no object/frame/base/form injection, no cleartext
+        fetches, and subresource loads pinned to an explicit host list.
+
+        The user-configurable update URL does not need a connect-src hole: on Android
+        window.fetch is patched over CapacitorHttp (native, CSP-exempt) and on desktop
+        the check is an IPC call to the main process.
+
+        Keep the media list in sync with the RECITATION_SOURCES table in js/player.ts.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: blob: https://verses.quran.com;
+        font-src 'self' data:;
+        media-src 'self' blob: mediastream:
+            https://cdn.islamic.network
+            https://server6.mp3quran.net
+            https://server7.mp3quran.net
+            https://server8.mp3quran.net
+            https://server10.mp3quran.net
+            https://server11.mp3quran.net
+            https://server13.mp3quran.net;
+        connect-src 'self' https://api.quran.com https://api.alquran.cloud https://cdn.jsdelivr.net;
+        worker-src 'self' blob:;
+        object-src 'none';
+        frame-src 'none';
+        frame-ancestors 'none';
+        base-uri 'none';
+        form-action 'none';
+    ">
     <title>القرآن الكريم والأذكار</title>
+    <!-- The WebView requests /favicon.ico unconditionally and Capacitor's local
+         server answers 404, which surfaces as a console error on every launch. -->
+    <link rel="icon" type="image/png" href="assets/icon.png">
     <!-- Stylesheets -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mus-haf.css">
     <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <!-- Lucide Icons -->
     <script src="js/libs/lucide.min.js"></script>
 </head>
@@ -21,24 +72,26 @@
                 </button>
                 <img src="assets/icon.png" class="brand-icon" alt="شعار المصحف">
                 <div class="brand-title">القرآن الكريم</div>
-                <div class="brand-badge">إصدار سطح المكتب</div>
+                <div class="brand-badge" id="brandPlatformBadge">إصدار سطح المكتب</div>
                 <button id="resumeReadingBadge" class="nav-btn btn-special" style="display: none;" title="متابعة آخر قراءة"></button>
             </div>
 
             <div class="nav-actions">
-                <button class="nav-btn" onclick="App.openSurahKahf()" title="سورة الكهف">
+                <!-- These five live in the sidebar "الأذكار والأدوات" tab on phones, where the
+                     label text is readable. Hidden below 768px, kept on wider screens. -->
+                <button class="nav-btn nav-desktop-only" onclick="App.openSurahKahf()" title="سورة الكهف">
                     <i data-lucide="book-open"></i> سورة الكهف
                 </button>
-                <button class="nav-btn" onclick="AdhkarModule.openAdhkarReader('sabah')" title="أذكار الصباح">
+                <button class="nav-btn nav-desktop-only" onclick="AdhkarModule.openAdhkarReader('sabah')" title="أذكار الصباح">
                     <i data-lucide="sun"></i> أذكار الصباح
                 </button>
-                <button class="nav-btn" onclick="AdhkarModule.openAdhkarReader('masa')" title="أذكار المساء">
+                <button class="nav-btn nav-desktop-only" onclick="AdhkarModule.openAdhkarReader('masa')" title="أذكار المساء">
                     <i data-lucide="moon"></i> أذكار المساء
                 </button>
-                <button class="nav-btn" onclick="AdhkarModule.openTasbihModal()" title="المسبحة الإلكترونية">
+                <button class="nav-btn nav-desktop-only" onclick="AdhkarModule.openTasbihModal()" title="المسبحة الإلكترونية">
                     <i data-lucide="circle-dot"></i> مسبحة
                 </button>
-                <button id="btnMyRecitation" class="nav-btn" onclick="PlayerModule.toggleMyRecitation()" title="وضع القراءة الخاصة مع التمرير التلقائي">
+                <button id="btnMyRecitation" class="nav-btn nav-desktop-only" onclick="PlayerModule.toggleMyRecitation()" title="وضع القراءة الخاصة مع التمرير التلقائي">
                     <i data-lucide="user"></i> قراءتي الخاصة
                 </button>
                 <button id="btnThemeToggle" class="nav-btn" onclick="App.cycleTheme()" title="تغيير المظهر">
@@ -63,14 +116,18 @@
         </div>
 
         <!-- ===== MAIN WORKSPACE ===== -->
+        <div class="sidebar-scrim" id="sidebarScrim" onclick="App.toggleSidebar()"></div>
         <div class="workspace">
             <!-- ===== COLLAPSIBLE RTL SIDEBAR ===== -->
             <aside class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <div class="search-box">
+                <div class="sidebar-header" style="display: flex; gap: 8px;">
+                    <div class="search-box" style="flex: 1;">
                         <i data-lucide="search" class="search-icon"></i>
                         <input type="text" class="search-input" id="sidebarSearchInput" placeholder="ابحث عن سورة بالاسم أو الرقم..." oninput="App.filterSurahs(this.value)">
                     </div>
+                    <button class="nav-btn" onclick="App.toggleSidebar()" style="padding: 0 10px;" title="إغلاق">
+                        <i data-lucide="x"></i>
+                    </button>
                 </div>
 
                 <div class="sidebar-tabs">
@@ -79,6 +136,9 @@
                     </button>
                     <button class="sidebar-tab" data-tab="bookmarks" onclick="App.switchSidebarTab('bookmarks')">
                         <i data-lucide="bookmark"></i> العلامات
+                    </button>
+                    <button class="sidebar-tab" data-tab="tools" onclick="App.switchSidebarTab('tools')">
+                        <i data-lucide="sparkles"></i> الأذكار والأدوات
                     </button>
                     <button class="sidebar-tab" data-tab="settings" onclick="App.switchSidebarTab('settings')">
                         <i data-lucide="settings"></i> الإعدادات
@@ -89,6 +149,55 @@
                     <!-- Surahs Tab -->
                     <div id="sidebarSurahView">
                         <div id="sidebarSurahList"></div>
+                    </div>
+
+                    <!-- Adhkar & Tools Tab -->
+                    <!-- On phones these used to live in the top bar, where they were
+                         squeezed into an icon-only strip and their labels were lost. They
+                         are listed here with full text, each row tall enough to tap. -->
+                    <div id="sidebarToolsView" style="display: none;">
+                        <div class="tools-list">
+                            <button class="tool-row" onclick="App.closeSidebar(); App.openSurahKahf()">
+                                <span class="tool-row-icon"><i data-lucide="book-open"></i></span>
+                                <span class="tool-row-text">
+                                    <span class="tool-row-title">سورة الكهف</span>
+                                    <span class="tool-row-sub">نور ما بين الجمعتين</span>
+                                </span>
+                                <i data-lucide="chevron-left" class="tool-row-chevron"></i>
+                            </button>
+                            <button class="tool-row" onclick="App.closeSidebar(); AdhkarModule.openAdhkarReader('sabah')">
+                                <span class="tool-row-icon"><i data-lucide="sun"></i></span>
+                                <span class="tool-row-text">
+                                    <span class="tool-row-title">أذكار الصباح</span>
+                                    <span class="tool-row-sub">حصن المسلم في أول النهار</span>
+                                </span>
+                                <i data-lucide="chevron-left" class="tool-row-chevron"></i>
+                            </button>
+                            <button class="tool-row" onclick="App.closeSidebar(); AdhkarModule.openAdhkarReader('masa')">
+                                <span class="tool-row-icon"><i data-lucide="moon"></i></span>
+                                <span class="tool-row-text">
+                                    <span class="tool-row-title">أذكار المساء</span>
+                                    <span class="tool-row-sub">حصن المسلم في آخر النهار</span>
+                                </span>
+                                <i data-lucide="chevron-left" class="tool-row-chevron"></i>
+                            </button>
+                            <button class="tool-row" onclick="App.closeSidebar(); AdhkarModule.openTasbihModal()">
+                                <span class="tool-row-icon"><i data-lucide="circle-dot"></i></span>
+                                <span class="tool-row-text">
+                                    <span class="tool-row-title">مسبحة</span>
+                                    <span class="tool-row-sub">عدّاد التسبيح الإلكتروني</span>
+                                </span>
+                                <i data-lucide="chevron-left" class="tool-row-chevron"></i>
+                            </button>
+                            <button class="tool-row" id="toolRowMyRecitation" onclick="App.closeSidebar(); PlayerModule.toggleMyRecitation()">
+                                <span class="tool-row-icon"><i data-lucide="user"></i></span>
+                                <span class="tool-row-text">
+                                    <span class="tool-row-title">قراءتي الخاصة</span>
+                                    <span class="tool-row-sub">وضع التمرير التلقائي مع صوتي</span>
+                                </span>
+                                <i data-lucide="chevron-left" class="tool-row-chevron"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Bookmarks Tab -->
@@ -167,8 +276,11 @@
                             <button class="nav-btn" style="width: 100%; justify-content: center; gap: 6px;" onclick="UpdaterModule.checkForUpdates(true)">
                                 <i data-lucide="search"></i> فحص وجود تحديثات الآن
                             </button>
-                            <!-- Hidden input keeping functionality intact without displaying raw Drive URL -->
-                            <input type="hidden" id="updateUrlInput">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; margin-bottom: 6px; line-height: 1.6;">
+                                رابط ملف التحديث (version.json). على تطبيق الجوال ألصق هنا رابط ملف يحتوي على رابط تحميل ملف APK.
+                            </div>
+                            <input type="url" id="updateUrlInput" placeholder="https://.../version.json" spellcheck="false"
+                                   style="width: 100%; min-height: 40px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-family: inherit; font-size: 12px; direction: ltr; text-align: left; outline: none;">
                         </div>
 
                         <!-- Backup & Sync Card (Google Drive & Local File) -->
@@ -288,11 +400,10 @@
                         <div class="sync-offset-value-badge" id="timingOffsetValueBadge">0.0 ث (تلقائي)</div>
                     </div>
                 </div>
-
-                <div class="volume-control">
-                    <span style="display: flex; align-items: center;"><i data-lucide="volume-2"></i></span>
-                    <input type="range" class="volume-slider" id="playerVolumeSlider" min="0" max="1" step="0.05" value="1" oninput="PlayerModule.setVolume(this.value)">
-                </div>
+            </div>
+            <div class="volume-control">
+                <span style="display: flex; align-items: center;"><i data-lucide="volume-2"></i></span>
+                <input type="range" class="volume-slider" id="playerVolumeSlider" min="0" max="1" step="0.05" value="1" oninput="PlayerModule.setVolume(this.value)">
             </div>
         </footer>
 

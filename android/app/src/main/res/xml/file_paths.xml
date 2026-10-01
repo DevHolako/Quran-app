@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Narrow on purpose: the only file this app ever hands to another app is the verified
+    update APK. <external-path path="."> would expose the whole shared storage root
+    through the provider, which is unnecessary attack surface if any intent is ever
+    forwarded.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-files-path name="app_updates" path="Download/updates/" />
+</paths>

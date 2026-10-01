@@ -1,5 +1,8 @@
 // Main Application Bootstrap & UI Controller
 import type { FullBackupData, LastReadState } from '../../types/quran';
+// Must stay first: installs the Android `desktopAPI` shim + native fetch bridge
+// before any other module touches them.
+import './platform';
 import { Storage } from './storage';
 import { SURAHS_DATA } from './quran-data';
 import { QuranModule } from './quran';
@@ -7,6 +10,7 @@ import { PlayerModule } from './player';
 import { TafsirModule } from './tafsir';
 import { AdhkarModule } from './adhkar';
 import { UpdaterModule } from './updater';
+import { escapeHtml, toSafeIndex } from './dom';
 
 export const App = {
     currentTheme: 'emerald',
@@ -25,13 +29,19 @@ export const App = {
         this.renderSurahList();
         this.renderBookmarksList();
 
-        // Check last read or default to Surah 1
+        // Check last read or default to Surah 1.
+        // A failed load renders the error UI inside loadSurah() and rethrows, so
+        // the remaining bootstrap (icons, shortcuts, tray) must still run.
         const lastRead = Storage.getLastRead();
-        if (lastRead && lastRead.surah) {
-            await QuranModule.loadSurah(lastRead.surah, lastRead.ayah);
-            this.showResumeBanner(lastRead);
-        } else {
-            await QuranModule.loadSurah(1);
+        try {
+            if (lastRead && lastRead.surah) {
+                await QuranModule.loadSurah(lastRead.surah, lastRead.ayah);
+                this.showResumeBanner(lastRead);
+            } else {
+                await QuranModule.loadSurah(1);
+            }
+        } catch (err) {
+            console.error('Initial surah load failed:', err);
         }
 
         this.attachGlobalEvents();
@@ -49,6 +59,7 @@ export const App = {
         this.currentTheme = themeName;
         document.body.setAttribute('data-theme', themeName);
         Storage.saveSettings({ theme: themeName });
+        this.syncNativeSystemBars(themeName);
 
         const themeBtn = document.getElementById('btnThemeToggle');
         if (themeBtn) {
@@ -56,6 +67,27 @@ export const App = {
             else if (themeName === 'sepia') themeBtn.innerHTML = '<i data-lucide="file-text"></i>';
             else themeBtn.innerHTML = '<i data-lucide="palette"></i>';
             this.initLucide();
+        }
+    },
+
+    /**
+     * The window is edge-to-edge, so the status and navigation bar icons are drawn
+     * directly on this theme's surface. Android picks their colour from the system
+     * dark mode setting, which is a different switch from the in-app theme, so on the
+     * dark theme the system-derived choice leaves dark icons on a near-black bar.
+     * Reporting the surface lets native code pick readable icons instead.
+     *
+     * Desktop has no native bars and Electron exposes no Capacitor bridge, so the
+     * lookup is guarded on both counts.
+     */
+    syncNativeSystemBars(themeName: string): void {
+        const capacitor = (window as any).Capacitor;
+        const systemBars = capacitor && capacitor.Plugins && capacitor.Plugins.SystemBars;
+        if (!systemBars || typeof systemBars.setDarkSurface !== 'function') return;
+        try {
+            systemBars.setDarkSurface({ dark: themeName === 'dark' });
+        } catch (_) {
+            /* The native side is an enhancement; the app works without it. */
         }
     },
 
@@ -81,9 +113,11 @@ export const App = {
         });
 
         if (filtered.length === 0) {
+            // filterQuery is raw keystrokes from the search box, so pasting
+            // `<img src=x onerror=...>` in there used to execute.
             container.innerHTML = `
                 <div style="text-align:center; padding: 30px 10px; color: var(--text-muted); font-size: 13px;">
-                    لا توجد سور مطابقة لـ "${filterQuery}"
+                    لا توجد سور مطابقة لـ "${escapeHtml(filterQuery)}"
                 </div>
             `;
             return;
@@ -93,7 +127,7 @@ export const App = {
         filtered.forEach(s => {
             const isActive = s.id === QuranModule.currentSurahId;
             html += `
-                <div class="surah-list-item ${isActive ? 'active' : ''}" data-id="${s.id}" onclick="QuranModule.loadSurah(${s.id})">
+                <div class="surah-list-item ${isActive ? 'active' : ''}" data-id="${s.id}" onclick="App.closeSidebar(); QuranModule.loadSurah(${s.id})">
                     <div class="surah-item-right">
                         <div class="surah-number-circle">${s.id}</div>
                         <div>
@@ -125,13 +159,23 @@ export const App = {
         const surahView = document.getElementById('sidebarSurahView');
         const bookmarksView = document.getElementById('sidebarBookmarksView');
         const settingsView = document.getElementById('sidebarSettingsView');
+        const toolsView = document.getElementById('sidebarToolsView');
 
         if (surahView) surahView.style.display = tabName === 'surahs' ? 'block' : 'none';
         if (bookmarksView) bookmarksView.style.display = tabName === 'bookmarks' ? 'block' : 'none';
         if (settingsView) settingsView.style.display = tabName === 'settings' ? 'block' : 'none';
+        if (toolsView) toolsView.style.display = tabName === 'tools' ? 'block' : 'none';
 
         if (tabName === 'bookmarks') {
             this.renderBookmarksList();
+        }
+
+        // The tools tab is static markup, so its icons are already rendered, but a
+        // re-render is cheap and keeps it correct if the markup gains icons later.
+        if (tabName === 'tools') {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                window.lucide.createIcons();
+            }
         }
     },
 
@@ -153,16 +197,20 @@ export const App = {
 
         let html = '';
         bookmarks.forEach(bm => {
+            // surah/ayah come from Storage and can be rewritten by an imported backup
+            // file, so both are clamped before landing in an onclick argument list.
+            const surah = toSafeIndex(bm.surah, 1, 114, 1);
+            const ayah = toSafeIndex(bm.ayah, 1, 286, 1);
             html += `
-                <div class="surah-list-item" onclick="QuranModule.loadSurah(${bm.surah}, ${bm.ayah})">
+                <div class="surah-list-item" onclick="App.closeSidebar(); QuranModule.loadSurah(${surah}, ${ayah})">
                     <div class="surah-item-right">
                         <div class="surah-number-circle" style="color: #e67e22; border-color: #e67e22;">📌</div>
                         <div>
-                            <div class="surah-item-name">${bm.surahName}</div>
-                            <div class="surah-item-english">الآية ${bm.ayah}</div>
+                            <div class="surah-item-name">${escapeHtml(bm.surahName)}</div>
+                            <div class="surah-item-english">الآية ${ayah}</div>
                         </div>
                     </div>
-                    <button class="ayah-action-btn" onclick="event.stopPropagation(); App.removeBookmarkItem(${bm.surah}, ${bm.ayah})" title="حذف العلامة">
+                    <button class="ayah-action-btn" onclick="event.stopPropagation(); App.removeBookmarkItem(${surah}, ${ayah})" title="حذف العلامة">
                         🗑️
                     </button>
                 </div>
@@ -187,7 +235,7 @@ export const App = {
     showResumeBanner(lastRead: LastReadState): void {
         const el = document.getElementById('resumeReadingBadge');
         if (el) {
-            el.innerHTML = `📖 متابعة القراءة: ${lastRead.surahName} (الآية ${lastRead.ayah})`;
+            el.innerHTML = `📖 متابعة القراءة: ${escapeHtml(lastRead.surahName)} (الآية ${toSafeIndex(lastRead.ayah, 1, 286, 1)})`;
             el.style.display = 'inline-flex';
             el.onclick = () => QuranModule.loadSurah(lastRead.surah, lastRead.ayah);
         }
@@ -199,9 +247,26 @@ export const App = {
         this.showToast('📖 سورة الكهف - نور ما بين الجمعتين');
     },
 
+    // Below 1024px the sidebar is a slide-over drawer driven by body.sidebar-open;
+    // above it the original docked/collapsed behaviour applies.
+    isDrawerLayout(): boolean {
+        return typeof window.matchMedia === 'function'
+            && window.matchMedia('(max-width: 1023px)').matches;
+    },
+
     toggleSidebar(): void {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.toggle('collapsed');
+        if (this.isDrawerLayout()) {
+            document.body.classList.toggle('sidebar-open');
+        } else {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('collapsed');
+        }
+    },
+
+    closeSidebar(): void {
+        if (this.isDrawerLayout()) {
+            document.body.classList.remove('sidebar-open');
+        }
     },
 
     // ========================================================
@@ -277,7 +342,13 @@ export const App = {
 
         const toast = document.createElement('div');
         toast.className = 'toast-msg';
-        toast.innerHTML = `<span>${message}</span>`;
+
+        // Callers interpolate values that came off the network (an update manifest's
+        // error string, a notification body), so the message is set as text. The <span>
+        // is kept because the stylesheet targets it.
+        const label = document.createElement('span');
+        label.textContent = message;
+        toast.appendChild(label);
 
         container.appendChild(toast);
 

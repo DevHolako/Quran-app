@@ -37,12 +37,30 @@ function createWindow(): void {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
-            webSecurity: false // allow audio streaming from different Quran CDN domains smoothly
+            // Same-origin policy stays ON. It was disabled to "let audio stream from
+            // different CDNs smoothly", but <audio>/<img> loads are not CORS-restricted,
+            // so disabling it bought nothing while letting any injected script read local
+            // files and phone home. The two fetch() call sites that do need cross-origin
+            // (api.quran.com, cdn.jsdelivr.net) both send Access-Control-Allow-Origin.
+            webSecurity: true
         },
         show: false
     });
 
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+
+    // The renderer only ever shows the local index.html. Anything that tries to walk it
+    // somewhere else, or pop a window, is dropped rather than handed to the shell.
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (isSafeExternalUrl(url)) shell.openExternal(url);
+        return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (url !== mainWindow?.webContents.getURL()) {
+            event.preventDefault();
+            if (isSafeExternalUrl(url)) shell.openExternal(url);
+        }
+    });
 
     mainWindow.once('ready-to-show', () => {
         if (mainWindow) mainWindow.show();
@@ -196,10 +214,37 @@ ipcMain.handle('download-update', async (_event, downloadUrl: string): Promise<{
 });
 
 ipcMain.handle('open-external-url', (_event, url: string): boolean => {
+    if (!isSafeExternalUrl(url)) {
+        return false;
+    }
     const formatted = updater.formatGoogleDriveUrl(url);
+    if (!isSafeExternalUrl(formatted || url)) {
+        return false;
+    }
     shell.openExternal(formatted || url);
     return true;
 });
+
+/**
+ * The renderer can ask for any URL it likes, and shell.openExternal hands that string
+ * to the Windows shell. Left unchecked it is a local privilege-escalation primitive:
+ * an injected string like a UNC path or a file:// handler makes Explorer run something
+ * on the user's machine. Only plain web links are allowed through.
+ */
+function isSafeExternalUrl(url: unknown): boolean {
+    if (typeof url !== 'string' || !url.trim()) {
+        return false;
+    }
+    try {
+        const parsed = new URL(url.trim());
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            return false;
+        }
+        return !!parsed.hostname;
+    } catch {
+        return false;
+    }
+}
 
 app.whenReady().then(() => {
     createWindow();

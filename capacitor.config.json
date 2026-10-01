@@ -1,0 +1,23 @@
+{
+  "appId": "com.quran.creator",
+  "appName": "القرآن الكريم",
+  "webDir": "www",
+  "loggingBehavior": "none",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#0d3b2e"
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config",
+      "iconColor": "#c9a227",
+      "sound": "beep.wav"
+    }
+  }
+}

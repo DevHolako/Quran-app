@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Legacy fallback colour for the launcher background. The adaptive icon in
+    mipmap-anydpi-v26/ now uses the generated @drawable/ic_launcher_background gradient, so
+    nothing references this colour today; it is kept pinned to the brand emerald in case a
+    launcher or a third-party resource ever falls back to it (a white value here would show
+    up as a blank white square behind the foreground).
+-->
+<resources>
+    <color name="ic_launcher_background">#0B3D2E</color>
+</resources>

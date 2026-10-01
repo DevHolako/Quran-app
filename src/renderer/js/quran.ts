@@ -2,6 +2,7 @@
 import type { SurahItem, Verse } from '../../types/quran';
 import { SURAHS_DATA } from './quran-data';
 import { Storage } from './storage';
+import { escapeHtml, toSafeIndex } from './dom';
 
 export const QuranModule = {
     currentSurahId: 1,
@@ -172,27 +173,34 @@ export const QuranModule = {
                 const ayahNum = index + 1;
                 const isBookmarked = Storage.isBookmarked(this.currentSurahId, ayahNum);
                 bodyHtml += `
-                    <div class="ayah-card" id="ayah-${ayahNum}" data-surah="${this.currentSurahId}" data-ayah="${ayahNum}" data-index="${index}">
+                    <div class="ayah-card" id="ayah-${ayahNum}" data-surah="${toSafeIndex(this.currentSurahId, 1, 114, 1)}" data-ayah="${ayahNum}" data-index="${index}">
                         <div class="ayah-card-header">
-                            <span class="ayah-number-badge" onclick="PlayerModule.seekToAyah(${ayahNum})" style="cursor: pointer;" title="استماع إلى الآية ${ayahNum}">
+                            <span class="ayah-number-badge" onclick="PlayerModule.seekToAyah(${toSafeIndex(ayahNum, 1, 286, 1)})" style="cursor: pointer;" title="استماع إلى الآية ${ayahNum}">
                                 <i data-lucide="play" style="width: 12px; height: 12px;"></i> الآية ${ayahNum}
                             </span>
-                            <div class="ayah-actions-toolbar">
-                                <button class="ayah-action-btn" onclick="PlayerModule.seekToAyah(${ayahNum})" title="استماع للآية">
+                        <div class="ayah-actions-toolbar">
+                                <button class="ayah-action-btn" onclick="PlayerModule.seekToAyah(${toSafeIndex(ayahNum, 1, 286, 1)})" title="استماع للآية">
                                     <i data-lucide="volume-2"></i> استماع
                                 </button>
-                                <button class="ayah-action-btn" onclick="TafsirModule.openTafsir(${this.currentSurahId}, ${ayahNum})" title="عرض التفسير">
+                                <button class="ayah-action-btn" onclick="TafsirModule.openTafsir(${toSafeIndex(this.currentSurahId, 1, 114, 1)}, ${toSafeIndex(ayahNum, 1, 286, 1)})" title="عرض التفسير">
                                     <i data-lucide="book-open"></i> تفسير
                                 </button>
-                                <button class="ayah-action-btn ${isBookmarked ? 'bookmarked' : ''}" id="bm-btn-${ayahNum}" onclick="QuranModule.toggleBookmark(${this.currentSurahId}, ${ayahNum})" title="حفظ علامة">
+                                <button class="ayah-action-btn ${isBookmarked ? 'bookmarked' : ''}" id="bm-btn-${ayahNum}" onclick="QuranModule.toggleBookmark(${toSafeIndex(this.currentSurahId, 1, 114, 1)}, ${toSafeIndex(ayahNum, 1, 286, 1)})" title="حفظ علامة">
                                     <i data-lucide="bookmark"></i> ${isBookmarked ? 'محفوظة' : 'علامة'}
                                 </button>
-                                <button class="ayah-action-btn" onclick="QuranModule.copyVerseText(${this.currentSurahId}, ${ayahNum})" title="نسخ الآية">
+                                <button class="ayah-action-btn" onclick="QuranModule.copyVerseText(${toSafeIndex(this.currentSurahId, 1, 114, 1)}, ${toSafeIndex(ayahNum, 1, 286, 1)})" title="نسخ الآية">
                                     <i data-lucide="copy"></i> نسخ
                                 </button>
                             </div>
                         </div>
-                        <div class="ayah-arabic-text">${verse.text}</div>
+                        <div class="ayah-arabic-text">${escapeHtml((() => {
+                            let t = verse.text;
+                            if (index === 0 && this.currentSurahId !== 1 && this.currentSurahId !== 9) {
+                                t = t.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ\s*/, '');
+                                t = t.replace(/^بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\s*/, '');
+                            }
+                            return t;
+                        })())}</div>
                     </div>
                 `;
             });
@@ -202,10 +210,15 @@ export const QuranModule = {
             bodyHtml = '<div class="mushaf-mode-flow">';
             this.currentVerses.forEach((verse, index) => {
                 const ayahNum = index + 1;
+                let textToDisplay = verse.text;
+                if (index === 0 && this.currentSurahId !== 1 && this.currentSurahId !== 9) {
+                    textToDisplay = textToDisplay.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ\s*/, '');
+                    textToDisplay = textToDisplay.replace(/^بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\s*/, '');
+                }
                 bodyHtml += `
-                    <span class="mushaf-ayah-span" id="ayah-${ayahNum}" data-surah="${this.currentSurahId}" data-ayah="${ayahNum}" data-index="${index}" onclick="TafsirModule.openTafsir(${this.currentSurahId}, ${ayahNum})" title="انقر لعرض التفسير | الآية ${ayahNum}">
-                        ${verse.text}
-                        <span class="mushaf-ayah-end" onclick="event.stopPropagation(); PlayerModule.seekToAyah(${ayahNum})" title="استماع للآية ${ayahNum}">${ayahNum}</span>
+                    <span class="mushaf-ayah-span" id="ayah-${ayahNum}" data-surah="${toSafeIndex(this.currentSurahId, 1, 114, 1)}" data-ayah="${ayahNum}" data-index="${index}" onclick="TafsirModule.openTafsir(${toSafeIndex(this.currentSurahId, 1, 114, 1)}, ${toSafeIndex(ayahNum, 1, 286, 1)})" title="انقر لعرض التفسير | الآية ${ayahNum}">
+                        ${escapeHtml(textToDisplay)}
+                        <span class="mushaf-ayah-end" onclick="event.stopPropagation(); PlayerModule.seekToAyah(${toSafeIndex(ayahNum, 1, 286, 1)})" title="استماع للآية ${ayahNum}">${ayahNum}</span>
                     </span>
                 `;
             });

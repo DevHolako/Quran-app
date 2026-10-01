@@ -671,8 +671,10 @@ export const PlayerModule = {
         this.isMyRecitation = true;
         const bar = document.getElementById('myRecitationBar');
         const btn = document.getElementById('btnMyRecitation');
+        const toolRow = document.getElementById('toolRowMyRecitation');
         if (bar) bar.classList.add('active');
         if (btn) btn.classList.add('active');
+        if (toolRow) toolRow.classList.add('active');
 
         const app = (window as any).App;
         if (app) app.showToast('👤 تم تفعيل وضع القراءة الخاصة والتمرير التلقائي');
@@ -706,8 +708,10 @@ export const PlayerModule = {
         this.isMyRecitation = false;
         const bar = document.getElementById('myRecitationBar');
         const btn = document.getElementById('btnMyRecitation');
+        const toolRow = document.getElementById('toolRowMyRecitation');
         if (bar) bar.classList.remove('active');
         if (btn) btn.classList.remove('active');
+        if (toolRow) toolRow.classList.remove('active');
 
         if (this.myRecitationAnimId) {
             cancelAnimationFrame(this.myRecitationAnimId);
