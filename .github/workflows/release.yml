@@ -98,7 +98,12 @@ jobs:
           java-version: '21'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses || true
 
       - name: Install Dependencies
         run: npm install
@@ -135,13 +140,19 @@ jobs:
         run: |
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
 
       - name: Prepare APK Output
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           mkdir -p apk-output
-          cp android/app/build/outputs/apk/release/app-release.apk "apk-output/Quran_App_${VERSION}.apk"
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: Release APK not found in android/app/build/outputs/apk/release"
+            exit 1
+          fi
+          echo "Found release APK at: $APK_PATH"
+          cp "$APK_PATH" "apk-output/Quran_App_${VERSION}.apk"
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
