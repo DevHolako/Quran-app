@@ -10,8 +10,8 @@ import { escapeHtml, setTextContentPreservingWrapper } from './dom';
 const BUNDLED_VERSION: string = ((window as any).__APP_VERSION__ as string) || '0.0.0';
 
 export const UpdaterModule = {
-    // Desktop manifest, which advertises the Windows installer.
-    defaultUpdateUrl: 'https://drive.google.com/file/d/1VGk5RhhFpr5mftqdp8bYUvxzRgr5ldij/view?usp=drive_link',
+    // Desktop manifest on GitHub main branch
+    defaultUpdateUrl: 'https://raw.githubusercontent.com/DevHolako/Quran-app/main/version.json',
     // Android has its own manifest; Platform.defaultUpdateUrl carries the URL baked in
     // from update-channel.json at build time.
     currentVersion: BUNDLED_VERSION,
@@ -290,15 +290,21 @@ export const UpdaterModule = {
                 this.isDownloading = false;
                 if (actionsBox) actionsBox.style.display = 'flex';
                 if (progressBox) progressBox.style.display = 'none';
-                if (app) app.showToast(`⚠️ تعذر التحميل التلقائي: ${res.error || ''} - جاري فتح التحميل في المتصفح`);
-                this.openDownloadInBrowser();
+                if (app) app.showToast(`⚠️ تعذر التحميل: ${res.error || 'فشل التنزيل'}`);
+            } else if (res.needsPermission) {
+                this.isDownloading = false;
+                if (actionsBox) actionsBox.style.display = 'flex';
+                if (progressBox) progressBox.style.display = 'none';
+                if (app) app.showToast('✅ تم تنزيل التحديث بنجاح! يرجى السماح بتثبيت التطبيقات من الإعدادات ثم العودة لإتمام التثبيت', 8000);
+            } else {
+                this.isDownloading = false;
+                this.closeUpdateModal();
             }
-        } catch (err) {
+        } catch (err: any) {
             this.isDownloading = false;
             if (actionsBox) actionsBox.style.display = 'flex';
             if (progressBox) progressBox.style.display = 'none';
-            if (app) app.showToast('⚠️ جاري فتح التحميل في المتصفح...');
-            this.openDownloadInBrowser();
+            if (app) app.showToast(`⚠️ حدث خطأ أثناء تحميل التحديث: ${err?.message || ''}`);
         }
     },
 

@@ -355,9 +355,34 @@ export const Platform = {
                 }
             },
 
-            async downloadUpdate(downloadUrl: string): Promise<{ success: boolean; error?: string }> {
+            async canRequestPackageInstalls(): Promise<{ canInstall: boolean; hasCachedApk?: boolean }> {
+                try {
+                    const updater = plugin('ApkUpdater');
+                    if (updater && typeof updater.canRequestPackageInstalls === 'function') {
+                        return await updater.canRequestPackageInstalls();
+                    }
+                    return { canInstall: true, hasCachedApk: false };
+                } catch {
+                    return { canInstall: true, hasCachedApk: false };
+                }
+            },
+
+            async installDownloadedApk(): Promise<{ success: boolean; error?: string }> {
+                try {
+                    const updater = plugin('ApkUpdater');
+                    if (updater && typeof updater.installDownloadedApk === 'function') {
+                        const res = await updater.installDownloadedApk();
+                        return { success: !!(res && res.success), error: res && res.error };
+                    }
+                    return { success: false, error: 'ApkUpdater plugin unavailable' };
+                } catch (err: any) {
+                    return { success: false, error: String(err?.message || err) };
+                }
+            },
+
+            async downloadUpdate(downloadUrl: string): Promise<{ success: boolean; needsPermission?: boolean; error?: string }> {
                 if (!looksLikeApk(downloadUrl)) {
-                    return { success: false, error: 'Le lien de mise à jour ne pointe pas vers un fichier APK' };
+                    return { success: false, error: 'رابط التحديث لا يشير إلى حزمة APK صالحة' };
                 }
                 let handle: any = null;
                 try {
@@ -371,7 +396,11 @@ export const Platform = {
                     }
 
                     const res = await updater.downloadAndInstall({ url: downloadUrl });
-                    return { success: !!(res && res.success), error: res && res.error };
+                    return {
+                        success: !!(res && res.success),
+                        needsPermission: !!(res && res.needsPermission),
+                        error: res && res.error
+                    };
                 } catch (err: any) {
                     log('downloadUpdate', err);
                     return { success: false, error: String(err && err.message ? err.message : err) };
@@ -388,6 +417,21 @@ export const Platform = {
         if (this.name === 'android') {
             this.installNativeFetch(plugin('CapacitorHttp'));
             this.installDesktopApiShim();
+
+            // Auto-resume installation if returning from permission screen
+            const appPlugin = plugin('App');
+            if (appPlugin && typeof appPlugin.addListener === 'function') {
+                appPlugin.addListener('appStateChange', async (state: any) => {
+                    if (state && state.isActive && g.desktopAPI && typeof g.desktopAPI.canRequestPackageInstalls === 'function') {
+                        try {
+                            const status = await g.desktopAPI.canRequestPackageInstalls();
+                            if (status && status.canInstall && status.hasCachedApk) {
+                                await g.desktopAPI.installDownloadedApk();
+                            }
+                        } catch (_) {}
+                    }
+                });
+            }
 
             const badge = document.getElementById('brandPlatformBadge');
             if (badge) badge.textContent = 'تطبيق الجوال';

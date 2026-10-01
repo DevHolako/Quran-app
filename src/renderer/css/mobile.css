@@ -560,4 +560,8 @@ html {
     .modal-card {
         border-radius: 20px;
     }
+
+    .btn-update-browser {
+        display: none !important;
+    }
 }

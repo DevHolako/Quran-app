@@ -4,7 +4,9 @@ export interface DesktopAPI {
     platform?: string;
     getAppVersion: () => Promise<string>;
     checkForUpdates: (url: string) => Promise<UpdateCheckResult>;
-    downloadUpdate: (url: string) => Promise<{ success: boolean; error?: string }>;
+    downloadUpdate: (url: string) => Promise<{ success: boolean; needsPermission?: boolean; error?: string }>;
+    canRequestPackageInstalls?: () => Promise<{ canInstall: boolean; hasCachedApk?: boolean }>;
+    installDownloadedApk?: () => Promise<{ success: boolean; error?: string }>;
     openExternalUrl: (url: string) => Promise<boolean>;
     showNotification: (title: string, body: string) => Promise<boolean>;
     minimize: () => Promise<void>;

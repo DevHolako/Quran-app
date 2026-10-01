@@ -217,11 +217,7 @@ ipcMain.handle('open-external-url', (_event, url: string): boolean => {
     if (!isSafeExternalUrl(url)) {
         return false;
     }
-    const formatted = updater.formatGoogleDriveUrl(url);
-    if (!isSafeExternalUrl(formatted || url)) {
-        return false;
-    }
-    shell.openExternal(formatted || url);
+    shell.openExternal(url);
     return true;
 });
 

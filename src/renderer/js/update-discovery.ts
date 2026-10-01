@@ -48,17 +48,14 @@ const buildCandidates = (bakedUrl: string): string[] => {
     if (bakedUrl) list.push(bakedUrl);
 
     const repo = 'DevHolako/Quran-app';
-    const branches = ['main', 'master'];
 
-    for (const branch of branches) {
-        list.push(
-            `https://raw.githubusercontent.com/${repo}/${branch}/version-android.json`,
-            `https://raw.githubusercontent.com/${repo}/${branch}/update-channel.json`
-        );
-    }
+    // 1. Direct release asset from latest GitHub Release
+    list.push(`https://github.com/${repo}/releases/latest/download/version-android.json`);
 
-    // Release asset, via the public API. Guarded at runtime by a size check so a
-    // large APK asset is never pulled through the JSON path.
+    // 2. Raw GitHub branch source
+    list.push(`https://raw.githubusercontent.com/${repo}/main/version-android.json`);
+
+    // 3. GitHub API latest release
     list.push(`https://api.github.com/repos/${repo}/releases/latest`);
 
     // Deduplicate while preserving order.
