@@ -1,7 +1,7 @@
 {
   "platform": "desktop",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "releaseDate": "2026-10-01",
-  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.9/Quran_App_Setup_1.0.9.exe",
-  "changelog": "الإصدار 1.0.9:\n- إصلاح تداخل شريط التطبيق العلوي مع شريط الحالة في نظام أندرويد"
+  "downloadUrl": "https://github.com/DevHolako/Quran-app/releases/download/v1.0.10/Quran_App_Setup_1.0.10.exe",
+  "changelog": "الإصدار 1.0.10:\n- الانتقال لنظام التحديثات التلقائية المباشرة عبر GitHub Releases\n- دعم التحديث الذاتي التلقائي لتطبيق الأندرويد من داخل التطبيق مباشرة\n- تحسينات عامة في الأداء واستقرار التطبيق"
 }
