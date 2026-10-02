@@ -51,7 +51,9 @@
 .sidebar {
     width: var(--sidebar-width);
     background: var(--bg-surface);
-    border-left: 1px solid var(--border-color);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-left: var(--glass-border);
     display: flex;
     flex-direction: column;
     /* dvh keeps the docked tablet sidebar aligned with the viewport while the
@@ -59,7 +61,8 @@
     height: calc(100vh - var(--header-height));
     height: calc(100dvh - var(--header-height));
     z-index: 90;
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -4px 0 30px rgba(0, 0, 0, 0.05);
 }
 
 .sidebar.collapsed {
@@ -70,7 +73,7 @@
 
 .sidebar-header {
     padding: 16px 16px 12px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: var(--glass-border);
 }
 
 .search-box {
@@ -107,7 +110,7 @@
 
 .sidebar-tabs {
     display: flex;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: var(--glass-border);
     background: var(--bg-surface-alt);
     padding: 4px;
     gap: 4px;
