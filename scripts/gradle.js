@@ -29,7 +29,7 @@ fs.writeFileSync(
     `sdk.dir=${sdk.replace(/\\/g, '\\\\')}\n`
 );
 
-const isWin = process.platform === 'win32';
+
 const wrapper = isWin
     ? path.join(androidDir, 'gradlew.bat')
     : path.join(androidDir, 'gradlew');

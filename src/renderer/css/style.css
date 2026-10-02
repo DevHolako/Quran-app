@@ -5,60 +5,67 @@
 @import url('fonts.css');
 
 :root {
-    /* Emerald Theme (Default) */
-    --primary: #0f5132;
-    --primary-light: #198754;
-    --primary-dark: #0a3622;
-    --primary-gradient: linear-gradient(135deg, #0f5132, #083320);
+    /* Modern Emerald Theme (Light Mode) */
+    --primary: #047857; /* Rich emerald */
+    --primary-light: #10b981;
+    --primary-dark: #064e3b;
+    --primary-gradient: linear-gradient(135deg, #047857, #10b981);
     --gold: #d4af37;
-    --gold-light: #f5e7a1;
-    --gold-gradient: linear-gradient(135deg, #d4af37, #aa820a);
-    --bg-main: #f8faf8;
-    --bg-surface: #ffffff;
-    --bg-surface-alt: #f0f4f1;
-    --text-primary: #192b21;
-    --text-secondary: #4a6356;
-    --text-muted: #7c9387;
-    --border-color: #e2e8e3;
-    --border-light: #edf2ee;
-    --card-shadow: 0 4px 16px rgba(15, 81, 50, 0.08);
-    --hover-bg: rgba(15, 81, 50, 0.06);
-    --active-ayah-bg: rgba(212, 175, 55, 0.14);
+    --gold-light: #fef08a;
+    --gold-gradient: linear-gradient(135deg, #d4af37, #b8860b);
+    --bg-main: #f8fafc;
+    --bg-surface: rgba(255, 255, 255, 0.85); /* Glassmorphism base */
+    --bg-surface-alt: rgba(241, 245, 249, 0.8);
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --border-color: rgba(226, 232, 240, 0.6);
+    --border-light: rgba(241, 245, 249, 0.5);
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --hover-bg: rgba(16, 185, 129, 0.08);
+    --active-ayah-bg: rgba(212, 175, 55, 0.12);
     --active-ayah-border: #d4af37;
+
+    /* Glassmorphism Variables */
+    --glass-blur: 16px;
+    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
     
     /* Global Typography */
     --font-quran: 'Amiri', 'Scheherazade New', serif;
-    --font-ui: 'Cairo', system-ui, -apple-system, sans-serif;
+    --font-ui: 'Inter', 'Outfit', 'Cairo', system-ui, -apple-system, sans-serif;
     --quran-font-size: 32px;
     --quran-line-height: 2.7;
     
     /* Layout Dimensions */
     --sidebar-width: 320px;
     --audio-dock-height: 84px;
-    --header-height: 64px;
+    --header-height: 70px; /* Slightly taller for modern look */
 }
 
 /* Dark OLED / Night Theme */
 body[data-theme="dark"] {
-    --primary: #10b981;
-    --primary-light: #34d399;
-    --primary-dark: #047857;
-    --primary-gradient: linear-gradient(135deg, #064e3b, #022c22);
+    --primary: #14b8a6; /* Teal accent */
+    --primary-light: #2dd4bf;
+    --primary-dark: #0f766e;
+    --primary-gradient: linear-gradient(135deg, #14b8a6, #0d9488);
     --gold: #fbbf24;
-    --gold-light: #fef08a;
-    --gold-gradient: linear-gradient(135deg, #fbbf24, #d97706);
-    --bg-main: #0c1219;
-    --bg-surface: #141c26;
-    --bg-surface-alt: #1a2533;
-    --text-primary: #f3f6f9;
-    --text-secondary: #9cb3c9;
-    --text-muted: #647d96;
-    --border-color: #233245;
-    --border-light: #1b2838;
-    --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-    --hover-bg: rgba(16, 185, 129, 0.1);
-    --active-ayah-bg: rgba(251, 191, 36, 0.16);
+    --gold-light: #fcd34d;
+    --gold-gradient: linear-gradient(135deg, #fbbf24, #f59e0b);
+    --bg-main: #0b1120; /* Deep navy/charcoal */
+    --bg-surface: rgba(15, 23, 42, 0.75); /* Glassmorphism dark */
+    --bg-surface-alt: rgba(30, 41, 59, 0.8);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-color: rgba(51, 65, 85, 0.6);
+    --border-light: rgba(30, 41, 59, 0.5);
+    --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    --hover-bg: rgba(20, 184, 166, 0.15);
+    --active-ayah-bg: rgba(251, 191, 36, 0.15);
     --active-ayah-border: #fbbf24;
+
+    /* Glassmorphism Variables */
+    --glass-border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Warm Mus'haf Sepia Theme */
@@ -71,17 +78,19 @@ body[data-theme="sepia"] {
     --gold-light: #fde68a;
     --gold-gradient: linear-gradient(135deg, #d97706, #92400e);
     --bg-main: #fbf6ec;
-    --bg-surface: #f4ecdc;
-    --bg-surface-alt: #ebdcc3;
+    --bg-surface: rgba(244, 236, 220, 0.85);
+    --bg-surface-alt: rgba(235, 220, 195, 0.8);
     --text-primary: #3b2314;
     --text-secondary: #6e4c34;
     --text-muted: #9c7b64;
-    --border-color: #dfcdb3;
-    --border-light: #eadfce;
-    --card-shadow: 0 4px 16px rgba(120, 53, 15, 0.08);
+    --border-color: rgba(223, 205, 179, 0.6);
+    --border-light: rgba(234, 223, 206, 0.5);
+    --card-shadow: 0 10px 30px rgba(120, 53, 15, 0.08);
     --hover-bg: rgba(133, 77, 14, 0.08);
     --active-ayah-bg: rgba(180, 83, 9, 0.14);
     --active-ayah-border: #b45309;
+
+    --glass-border: 1px solid rgba(133, 77, 14, 0.1);
 }
 
 * {
@@ -120,13 +129,15 @@ html, body {
 .top-nav {
     height: var(--header-height);
     background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-bottom: var(--glass-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20px;
+    padding: 0 24px;
     z-index: 100;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
 }
 
 .brand-section {
@@ -136,12 +147,16 @@ html, body {
 }
 
 .brand-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
     object-fit: cover;
-    box-shadow: 0 2px 8px rgba(15, 81, 50, 0.25);
+    box-shadow: 0 4px 12px rgba(4, 120, 87, 0.3);
     border: 1px solid var(--gold);
+    transition: transform 0.3s ease;
+}
+.brand-icon:hover {
+    transform: scale(1.05);
 }
 
 .brand-title {
